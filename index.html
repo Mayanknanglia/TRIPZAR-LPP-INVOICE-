@@ -1,0 +1,299 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Tripzar Holidays - Invoice System</title>
+    
+    <meta name="theme-color" content="#1a5632">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tripzar Invoice">
+    <meta name="description" content="Tripzar Holidays LLP - Professional Invoice Management System">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Tripzar Invoice">
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="icon" type="image/png" href="public/logo.png">
+    <link rel="shortcut icon" type="image/png" href="public/logo.png">
+    <link rel="apple-touch-icon" href="public/logo.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="public/icon-152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="public/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="public/icon-512.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+      import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+      import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCHy7rQWUr6e1N9ubzHM_l0EGP4C0f7OEY",
+        authDomain: "tripzar-invoice.firebaseapp.com",
+        projectId: "tripzar-invoice",
+        storageBucket: "tripzar-invoice.firebasestorage.app",
+        messagingSenderId: "491969585584",
+        appId: "1:491969585584:web:39c8dbdc8d28b1fa84b675",
+        measurementId: "G-WWX44DRR2Q"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      window.firebaseApp = app;
+      window.firebaseDB = getFirestore(app);
+      window.firebaseAuth = getAuth(app);
+
+      window.fbCollection = collection;
+      window.fbDoc = doc;
+      window.fbSetDoc = setDoc;
+      window.fbGetDocs = getDocs;
+      window.fbDeleteDoc = deleteDoc;
+      window.fbOnSnapshot = onSnapshot;
+      window.fbSignIn = signInWithEmailAndPassword;
+      window.fbSignOut = signOut;
+      window.fbOnAuthStateChanged = onAuthStateChanged;
+      window.fbCreateUser = createUserWithEmailAndPassword;
+
+      console.log('✅ Firebase initialized');
+    </script>
+</head>
+<body>
+    
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-screen">
+        <div class="travel-bg">
+            <div class="bg-leaf leaf-1">🌿</div>
+            <div class="bg-leaf leaf-2">🍃</div>
+            <div class="bg-leaf leaf-3">🌴</div>
+            <div class="bg-leaf leaf-4">🌿</div>
+            <div class="bg-leaf leaf-5">🍃</div>
+            <div class="bg-leaf leaf-6">🌴</div>
+            <div class="bg-icon plane-1">✈️</div>
+            <div class="bg-icon plane-2">✈️</div>
+            <div class="bg-icon compass">🧭</div>
+            <div class="bg-icon suitcase">🧳</div>
+            <div class="bg-icon camera">📷</div>
+            <div class="bg-icon map">🗺️</div>
+            <div class="bg-icon mountain">⛰️</div>
+            <div class="bg-icon beach">🏖️</div>
+            <div class="bg-icon hotel">🏨</div>
+            <div class="bg-icon globe">🌍</div>
+            <div class="bg-cloud cloud-1"></div>
+            <div class="bg-cloud cloud-2"></div>
+            <div class="bg-cloud cloud-3"></div>
+        </div>
+
+        <div class="login-container">
+            <div class="login-logo">
+                <div class="logo-badge">
+                    <img src="public/logo.png" alt="Tripzar" class="login-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="logo-fallback" style="display:none">✈️</div>
+                </div>
+                <h1>TRIPZAR HOLIDAYS LLP</h1>
+                <p>Invoice Management System</p>
+                <div class="logo-tagline">
+                    <span>🌍</span> Explore Beyond Ordinary <span>✈️</span>
+                </div>
+            </div>
+            
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label>USERNAME</label>
+                    <div class="input-icon">
+                        <span class="material-icons-round input-left-icon">person</span>
+                        <input type="text" id="loginUsername" placeholder="Enter username" autocomplete="username" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>PASSWORD</label>
+                    <div class="input-icon">
+                        <span class="material-icons-round input-left-icon">lock</span>
+                        <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password" required>
+                        <button type="button" class="toggle-pass" onclick="togglePassword()">
+                            <span class="material-icons-round" id="passToggleIcon">visibility_off</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-login">
+                    <span class="material-icons-round">login</span> 
+                    <span>Login</span>
+                </button>
+
+                <button type="button" id="loginInstallBtn" class="btn-install-login" onclick="triggerInstall()">
+                    <span class="material-icons-round">get_app</span>
+                    <span>Download App</span>
+                </button>
+                
+                <p class="login-footer">
+                    <span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#f59e0b">verified_user</span> 
+                    Secured Access
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainApp" class="main-app hidden">
+        
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <img src="public/logo.png" alt="Tripzar" class="sidebar-logo" onerror="this.style.display='none'">
+                <div class="sidebar-brand">
+                    <h2>TRIPZAR</h2>
+                    <span>Invoice System</span>
+                </div>
+                <button class="sidebar-close" onclick="toggleSidebar()">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard'); return false;">
+                    <span class="material-icons-round">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+                
+                <div style="padding:10px 16px 4px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">💰 Sales</div>
+                <a href="#" class="nav-item" data-page="invoices" onclick="navigateTo('invoices'); return false;">
+                    <span class="material-icons-round">receipt_long</span>
+                    <span>Invoices</span>
+                </a>
+                <a href="#" class="nav-item" data-page="newInvoice" onclick="navigateTo('newInvoice'); return false;">
+                    <span class="material-icons-round">add_circle</span>
+                    <span>New Invoice</span>
+                </a>
+                <a href="#" class="nav-item" data-page="customers" onclick="navigateTo('customers'); return false;">
+                    <span class="material-icons-round">people</span>
+                    <span>Customers</span>
+                </a>
+
+                <div style="padding:10px 16px 4px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">🛒 Purchase</div>
+                <a href="#" class="nav-item" data-page="purchases" onclick="navigateTo('purchases'); return false;">
+                    <span class="material-icons-round">shopping_cart</span>
+                    <span>Purchases</span>
+                </a>
+                <a href="#" class="nav-item" data-page="newPurchase" onclick="navigateTo('newPurchase'); return false;">
+                    <span class="material-icons-round">add_shopping_cart</span>
+                    <span>New Purchase</span>
+                </a>
+                <a href="#" class="nav-item" data-page="suppliers" onclick="navigateTo('suppliers'); return false;">
+                    <span class="material-icons-round">business</span>
+                    <span>Suppliers</span>
+                </a>
+
+                <div style="padding:10px 16px 4px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">📊 Analytics</div>
+                <a href="#" class="nav-item" data-page="reports" onclick="navigateTo('reports'); return false;">
+                    <span class="material-icons-round">assessment</span>
+                    <span>Reports</span>
+                </a>
+                <a href="#" class="nav-item" data-page="gstReports" onclick="navigateTo('gstReports'); return false;">
+                    <span class="material-icons-round">receipt</span>
+                    <span>GST Reports</span>
+                </a>
+                <a href="#" class="nav-item" data-page="settings" onclick="navigateTo('settings'); return false;">
+                    <span class="material-icons-round">settings</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button class="nav-item install-btn" id="sidebarInstallBtn" onclick="triggerInstall()">
+                    <span class="material-icons-round">get_app</span>
+                    <span>Install App</span>
+                </button>
+                <button class="nav-item" onclick="toggleDarkMode()">
+                    <span class="material-icons-round" id="themeIcon">dark_mode</span>
+                    <span id="themeText">Dark Mode</span>
+                </button>
+                <button class="nav-item logout-btn" onclick="logout()">
+                    <span class="material-icons-round">logout</span>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+        
+        <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <div class="main-content">
+            <header class="navbar">
+                <div class="navbar-left">
+                    <button class="menu-toggle" onclick="toggleSidebar()">
+                        <span class="material-icons-round">menu</span>
+                    </button>
+                    <h2 id="pageTitle">Dashboard</h2>
+                </div>
+                <div class="navbar-right">
+                    <button class="navbar-install-btn" id="navbarInstallBtn" onclick="triggerInstall()" title="Install App">
+                        <span class="material-icons-round">get_app</span>
+                        <span class="install-text">Install App</span>
+                    </button>
+                    <span class="fy-badge" id="fyBadge">FY 2026-27</span>
+                    <div class="user-info" onclick="navigateTo('settings')">
+                        <span class="material-icons-round">account_circle</span>
+                        <span class="user-name">Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="page-content" id="pageContent">
+                <div id="page-dashboard" class="page active"></div>
+                <div id="page-invoices" class="page"></div>
+                <div id="page-newInvoice" class="page"></div>
+                <div id="page-customers" class="page"></div>
+                <div id="page-purchases" class="page"></div>
+                <div id="page-newPurchase" class="page"></div>
+                <div id="page-suppliers" class="page"></div>
+                <div id="page-purchaseView" class="page"></div>
+                <div id="page-reports" class="page"></div>
+                <div id="page-gstReports" class="page"></div>
+                <div id="page-settings" class="page"></div>
+                <div id="page-invoiceView" class="page"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loader"></div>
+        <p>Loading...</p>
+    </div>
+
+    <div id="modalContainer" class="modal-overlay hidden">
+        <div class="modal" id="modalContent"></div>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- App Scripts (Order matters!) -->
+    <script src="js/utils.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/gst-lookup.js"></script>
+    <script src="js/pdf.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/customers.js"></script>
+    <script src="js/invoices.js"></script>
+    <script src="js/suppliers.js"></script>
+    <script src="js/purchases.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/gst-reports.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/drive.js"></script>
+    <script src="js/whatsapp.js"></script>
+    <script src="js/email.js"></script>
+    <script src="js/firebase-sync.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
