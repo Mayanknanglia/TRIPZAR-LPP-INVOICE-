@@ -1,5 +1,6 @@
-﻿/* =============================================
-   SETTINGS v9 - Full Firebase Sync (Profile+Logo+Everything)
+/* =============================================
+   SETTINGS v10 - Auto Image Compression + Firebase Sync
+   Prevents Firebase 1MB limit error
    ============================================= */
 
 function renderSettings() {
@@ -45,6 +46,7 @@ function renderSettings() {
                         ${auth.profile_photo ? `<button class="btn btn-sm btn-danger" onclick="removeProfilePhoto()"><span class="material-icons-round">delete</span> Remove</button>` : ''}
                     </div>
                     <input type="file" id="profilePhotoFile" accept="image/*" style="display:none" onchange="uploadProfilePhoto(event)">
+                    <small class="input-hint" style="margin-top:6px;display:block">📸 Auto-compresses to save space</small>
                 </div>
             </div>
             <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
@@ -128,6 +130,7 @@ function renderSettings() {
                         </button>
                         ${s.logo_data ? `<button class="btn btn-danger" onclick="removeLogo()"><span class="material-icons-round">delete</span> Remove</button>` : ''}
                     </div>
+                    <small class="input-hint" style="margin-top:6px;display:block">📸 Auto-compresses to 400x400px, ~150KB (Firebase safe)</small>
                 </div>
             </div>
         </div>
@@ -239,7 +242,7 @@ function renderSettings() {
             </div>
             
             <div style="background:#fff3e0;padding:12px;border-radius:8px;margin-bottom:14px;font-size:12px;color:#e65100">
-                <strong>⚡ Everything Syncs:</strong> Invoices, Customers, Profile Photo, Logo, Settings — sab automatic sync ho jayega har device pe!
+                <strong>⚡ Everything Syncs:</strong> Invoices, Customers, Purchases, Suppliers, Profile Photo, Logo, Settings — sab automatic sync ho jayega har device pe!
             </div>
 
             <div class="btn-group">
@@ -261,22 +264,6 @@ function renderSettings() {
                 3. Sab data automatic sync — profile pic, logo, invoices sab! ⚡<br>
                 4. Ek device pe change → dusre pe instant update!
             </div>
-
-            <details style="margin-top:12px">
-                <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--primary);padding:6px 0">
-                    📋 First Time Setup Instructions
-                </summary>
-                <div style="margin-top:8px;font-size:11px;line-height:1.7;padding:10px;background:var(--bg);border-radius:6px">
-                    <ol style="padding-left:20px;margin:0">
-                        <li><strong>This Device:</strong> Click "Upload All Data to Cloud" ✅</li>
-                        <li><strong>Wait 30 seconds</strong> - all data uploads (invoices, customers, profile pic, logo)</li>
-                        <li><strong>Other Device:</strong> Open same URL</li>
-                        <li><strong>Auto-login</strong> Firebase pe ho jayega</li>
-                        <li><strong>Automatic sync</strong> starts! ⚡</li>
-                        <li>Any change on any device → all devices update instantly!</li>
-                    </ol>
-                </div>
-            </details>
         </div>
 
         <!-- ==================== GOOGLE DRIVE INTEGRATION ==================== -->
@@ -307,7 +294,6 @@ function renderSettings() {
                 </button>
             </div>
 
-            <!-- AUTO-SAVE TOGGLES -->
             <div style="margin-top:20px;padding:15px;background:#f0f7ff;border-radius:8px;border:1px solid #4285F4">
                 <div style="font-weight:700;font-size:13px;color:#1a73e8;margin-bottom:12px;display:flex;align-items:center;gap:6px">
                     <span class="material-icons-round" style="font-size:18px">auto_awesome</span>
@@ -377,6 +363,72 @@ function renderSettings() {
 }
 
 // ============================================
+// ⭐ IMAGE COMPRESSION HELPER
+// ============================================
+function compressImage(file, maxSize = 400, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Maintain aspect ratio
+                if (width > height) {
+                    if (width > maxSize) {
+                        height = (height * maxSize) / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width = (width * maxSize) / height;
+                        height = maxSize;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                
+                // White background for transparent PNGs
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Draw image
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Try quality levels until under 700KB
+                let compressed = canvas.toDataURL('image/jpeg', quality);
+                let sizeKB = Math.round(compressed.length / 1024);
+                
+                // If still too big, reduce quality
+                if (sizeKB > 700) {
+                    compressed = canvas.toDataURL('image/jpeg', 0.7);
+                    sizeKB = Math.round(compressed.length / 1024);
+                }
+                if (sizeKB > 700) {
+                    compressed = canvas.toDataURL('image/jpeg', 0.5);
+                    sizeKB = Math.round(compressed.length / 1024);
+                }
+                
+                resolve({
+                    data: compressed,
+                    sizeKB: sizeKB,
+                    width: width,
+                    height: height
+                });
+            };
+            img.onerror = () => reject(new Error('Invalid image'));
+            img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('File read error'));
+        reader.readAsDataURL(file);
+    });
+}
+
+// ============================================
 // ADDRESS PREVIEW
 // ============================================
 function buildAddressPreview(s) {
@@ -408,30 +460,40 @@ function autoFillStateCode() {
 }
 
 // ============================================
-// ⭐ PROFILE PHOTO — WITH FIREBASE SYNC
+// ⭐ PROFILE PHOTO — WITH AUTO COMPRESSION
 // ============================================
-function uploadProfilePhoto(event) {
+async function uploadProfilePhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { showToast('Max 2MB!', 'error'); return; }
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const auth = DB.getAuth();
-        auth.profile_photo = e.target.result;
+    if (file.size > 10 * 1024 * 1024) { 
+        showToast('Max 10MB!', 'error'); 
+        return; 
+    }
+    
+    showToast('🔄 Compressing photo...', 'info');
+    
+    try {
+        // Compress to max 300x300, 85% quality (profile photo doesn't need to be large)
+        const result = await compressImage(file, 300, 0.85);
+        console.log(`📸 Photo compressed: ${result.sizeKB} KB (${result.width}x${result.height})`);
         
-        // 🔥 Sync to Firebase
+        const auth = DB.getAuth();
+        auth.profile_photo = result.data;
+        
         if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
             await FirebaseSync.saveAuth(auth);
-            showToast('☁️ Photo updated & synced to cloud!', 'success');
+            showToast(`☁️ Photo saved (${result.sizeKB}KB) & synced!`, 'success');
         } else {
             DB.saveAuth(auth);
-            showToast('✅ Photo updated!', 'success');
+            showToast(`✅ Photo saved (${result.sizeKB}KB)!`, 'success');
         }
         
         renderSettings();
         if (typeof updateNavbarUserName === 'function') updateNavbarUserName();
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('Photo compression error:', error);
+        showToast('❌ Failed to process image', 'error');
+    }
 }
 
 async function removeProfilePhoto() {
@@ -439,7 +501,6 @@ async function removeProfilePhoto() {
     const auth = DB.getAuth();
     auth.profile_photo = '';
     
-    // 🔥 Sync to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         await FirebaseSync.saveAuth(auth);
         showToast('☁️ Removed & synced!', 'success');
@@ -453,7 +514,7 @@ async function removeProfilePhoto() {
 }
 
 // ============================================
-// ⭐ SAVE PROFILE — WITH FIREBASE SYNC
+// SAVE PROFILE
 // ============================================
 async function saveProfile() {
     const fullName = document.getElementById('profFullName').value.trim();
@@ -473,7 +534,6 @@ async function saveProfile() {
     auth.email = email;
     auth.phone = phone;
     
-    // 🔥 Sync to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         await FirebaseSync.saveAuth(auth);
         showToast('☁️ Profile saved & synced to cloud!', 'success');
@@ -487,30 +547,40 @@ async function saveProfile() {
 }
 
 // ============================================
-// ⭐ LOGO — WITH FIREBASE SYNC
+// ⭐ LOGO — WITH AUTO COMPRESSION
 // ============================================
-function uploadLogo(event) {
+async function uploadLogo(event) {
     const file = event.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { showToast('Max 2MB!', 'error'); return; }
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const settings = DB.getSettings();
-        settings.logo_data = e.target.result;
+    if (file.size > 10 * 1024 * 1024) { 
+        showToast('Max 10MB!', 'error'); 
+        return; 
+    }
+    
+    showToast('🔄 Compressing logo...', 'info');
+    
+    try {
+        // Compress to max 400x400, 85% quality (perfect for logo)
+        const result = await compressImage(file, 400, 0.85);
+        console.log(`📸 Logo compressed: ${result.sizeKB} KB (${result.width}x${result.height})`);
         
-        // 🔥 Sync to Firebase
+        const settings = DB.getSettings();
+        settings.logo_data = result.data;
+        
         if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
             await FirebaseSync.saveSettings(settings);
-            showToast('☁️ Logo uploaded & synced to cloud!', 'success');
+            showToast(`☁️ Logo saved (${result.sizeKB}KB) & synced!`, 'success');
         } else {
             DB.saveSettings(settings);
-            showToast('✅ Logo uploaded!', 'success');
+            showToast(`✅ Logo saved (${result.sizeKB}KB)!`, 'success');
         }
         
         renderSettings();
         if (typeof syncAppLogo === 'function') syncAppLogo();
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('Logo compression error:', error);
+        showToast('❌ Failed to process image', 'error');
+    }
 }
 
 async function removeLogo() {
@@ -518,7 +588,6 @@ async function removeLogo() {
     const settings = DB.getSettings();
     delete settings.logo_data;
     
-    // 🔥 Sync to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         await FirebaseSync.saveSettings(settings);
         showToast('☁️ Removed & synced!', 'success');
@@ -532,7 +601,7 @@ async function removeLogo() {
 }
 
 // ============================================
-// SAVE COMPANY SETTINGS (with Firebase sync)
+// SAVE COMPANY SETTINGS
 // ============================================
 async function saveSettingsAction() {
     const currentSettings = DB.getSettings();
@@ -566,7 +635,6 @@ async function saveSettingsAction() {
         declaration: document.getElementById('setDeclaration').value
     };
     
-    // 🔥 Sync to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.initialized && FirebaseSync.userId) {
         await FirebaseSync.saveSettings(settings);
         showToast('☁️ Settings saved & synced to cloud!', 'success');
@@ -577,7 +645,7 @@ async function saveSettingsAction() {
 }
 
 // ============================================
-// ⭐ CHANGE PASSWORD — WITH FIREBASE SYNC
+// CHANGE PASSWORD
 // ============================================
 async function changePasswordAction() {
     const curr = document.getElementById('setCurrPass').value;
@@ -586,9 +654,8 @@ async function changePasswordAction() {
     if (!curr || !newP || !conf) { showToast('Fill all!', 'error'); return; }
     if (newP !== conf) { showToast('Dont match!', 'error'); return; }
     
-    const result = Auth.changePassword(curr, newP);
+    Auth.changePassword(curr, newP);
     
-    // 🔥 Sync updated auth (with new password) to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         const auth = DB.getAuth();
         await FirebaseSync.saveAuth(auth);
@@ -616,7 +683,6 @@ function saveDriveUrl() {
     }
     Drive.setScriptUrl(url);
     
-    // Also sync Drive URL to Firebase (as part of settings)
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         const settings = DB.getSettings();
         FirebaseSync.saveSettings(settings);
@@ -669,14 +735,13 @@ async function toggleAutoSave(enabled) {
     }
     Drive.setAutoSave(enabled);
     
-    // Sync setting to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         const settings = DB.getSettings();
         await FirebaseSync.saveSettings(settings);
     }
     
     if (enabled) {
-        showToast('✅ Auto-Save enabled! PDFs will auto-upload on save.', 'success');
+        showToast('✅ Auto-Save enabled!', 'success');
     } else {
         showToast('⭕ Auto-Save disabled', 'info');
     }
@@ -696,14 +761,13 @@ async function toggleAutoBackup(enabled) {
     }
     Drive.setAutoBackup(enabled);
     
-    // Sync setting to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         const settings = DB.getSettings();
         await FirebaseSync.saveSettings(settings);
     }
     
     if (enabled) {
-        showToast('✅ Auto-Backup enabled! Data will backup every 30 min.', 'success');
+        showToast('✅ Auto-Backup enabled!', 'success');
     } else {
         showToast('⭕ Auto-Backup disabled', 'info');
     }
@@ -711,16 +775,15 @@ async function toggleAutoBackup(enabled) {
 }
 
 // ============================================
-// 🔥 FIREBASE CLOUD SYNC FUNCTIONS
+// FIREBASE CLOUD SYNC FUNCTIONS
 // ============================================
 async function uploadToCloud() {
     if (typeof FirebaseSync === 'undefined' || !FirebaseSync.initialized) {
-        showToast('❌ Firebase not initialized. Check console.', 'error');
+        showToast('❌ Firebase not initialized', 'error');
         return;
     }
     if (!FirebaseSync.userId) {
         showToast('⏳ Waiting for auto-login...', 'info');
-        // Try auto-login again
         await FirebaseSync.autoLogin();
         if (!FirebaseSync.userId) {
             showFirebaseLoginModal();
@@ -728,11 +791,11 @@ async function uploadToCloud() {
         }
     }
     
-    if (!confirmDialog('🚀 Upload all local data to Firebase cloud?\n\nThis will upload:\n• All invoices\n• All customers\n• Profile photo\n• Company logo\n• Settings\n• Password\n\nMake it available on all your devices!')) return;
+    if (!confirmDialog('🚀 Upload all data to Firebase cloud?')) return;
     
     const result = await FirebaseSync.migrateLocalToCloud();
     if (result) {
-        showToast('🎉 Everything synced! Open on any device to see all data.', 'success');
+        showToast('🎉 All data synced to cloud!', 'success');
     }
 }
 
@@ -742,7 +805,6 @@ async function syncFromCloud() {
         return;
     }
     if (!FirebaseSync.userId) {
-        showToast('⏳ Waiting for auto-login...', 'info');
         await FirebaseSync.autoLogin();
         if (!FirebaseSync.userId) {
             showFirebaseLoginModal();
@@ -759,79 +821,61 @@ function checkFirebaseStatus() {
         'Initialized': FirebaseSync?.initialized ? '✅ Yes' : '❌ No',
         'Internet': FirebaseSync?.online ? '✅ Online' : '❌ Offline',
         'Firebase Login': FirebaseSync?.userId ? '✅ Auto Logged In' : '❌ Not logged in',
-        'User ID': FirebaseSync?.userId ? FirebaseSync.userId.substring(0, 20) + '...' : 'None',
         'Active Listeners': FirebaseSync?.listeners.length || 0,
         'Pending Queue': JSON.parse(localStorage.getItem('firebase_queue') || '[]').length
     };
     
     const msg = Object.entries(status).map(([k, v]) => `${k}: ${v}`).join('\n');
-    alert('🔥 Firebase Sync Status:\n\n' + msg);
+    alert('🔥 Firebase Status:\n\n' + msg);
     
     if (!FirebaseSync?.userId) {
         setTimeout(() => showFirebaseLoginModal(), 500);
     }
 }
 
-// ============================================
-// FIREBASE LOGIN MODAL (Manual backup)
-// ============================================
 function showFirebaseLoginModal() {
     const modal = document.getElementById('modalContent');
     const container = document.getElementById('modalContainer');
 
     modal.innerHTML = `
         <div class="modal-header" style="background:linear-gradient(135deg,#FFA500,#FF6B00);color:white">
-            <h2 style="color:white">
-                <span class="material-icons-round" style="vertical-align:middle">cloud_sync</span>
-                Firebase Manual Login
-            </h2>
+            <h2 style="color:white">Firebase Manual Login</h2>
             <button class="modal-close" style="color:white" onclick="closeFirebaseLoginModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <div style="background:#fff3e0;padding:12px;border-radius:8px;margin-bottom:15px;font-size:12px;color:#e65100">
-                <strong>⚠️ Auto-login failed?</strong> Try manual login. Default credentials pre-filled below.
-            </div>
-
             <div class="form-group">
-                <label>Firebase Email</label>
-                <input type="email" id="fbLoginEmail" value="admin@tripzar.com" placeholder="admin@tripzar.com">
+                <label>Email</label>
+                <input type="email" id="fbLoginEmail" value="admin@tripzar.com">
             </div>
-
             <div class="form-group">
-                <label>Firebase Password</label>
-                <input type="password" id="fbLoginPass" value="tripzar@123" placeholder="Enter password">
+                <label>Password</label>
+                <input type="password" id="fbLoginPass" value="tripzar@123">
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeFirebaseLoginModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="doFirebaseLogin()" style="background:linear-gradient(135deg,#FFA500,#FF6B00)">
-                <span class="material-icons-round">login</span> Login to Firebase
-            </button>
+            <button class="btn btn-primary" onclick="doFirebaseLogin()" style="background:linear-gradient(135deg,#FFA500,#FF6B00)">Login</button>
         </div>
     `;
     container.classList.remove('hidden');
-    setTimeout(() => document.getElementById('fbLoginPass')?.focus(), 300);
 }
 
 async function doFirebaseLogin() {
     const email = document.getElementById('fbLoginEmail').value.trim();
     const pass = document.getElementById('fbLoginPass').value.trim();
 
-    if (!email || !pass) { showToast('Enter both email and password!', 'error'); return; }
+    if (!email || !pass) { showToast('Enter both!', 'error'); return; }
 
-    showToast('🔄 Logging in to Firebase...', 'info');
+    showToast('🔄 Logging in...', 'info');
     
     try {
         const result = await FirebaseSync.login(email, pass);
         if (result.success) {
-            showToast('✅ Firebase login successful! Cloud sync active!', 'success');
+            showToast('✅ Login successful!', 'success');
             closeFirebaseLoginModal();
-            
-            setTimeout(async () => {
-                await FirebaseSync.fullSync();
-            }, 1000);
+            setTimeout(async () => await FirebaseSync.fullSync(), 1000);
         } else {
-            showToast('❌ Firebase login failed: ' + result.error, 'error');
+            showToast('❌ Failed: ' + result.error, 'error');
         }
     } catch (error) {
         showToast('❌ Error: ' + error.message, 'error');
