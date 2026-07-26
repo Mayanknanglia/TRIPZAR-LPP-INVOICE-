@@ -1,9 +1,10 @@
 ﻿/* =============================================
-   CUSTOMERS v5 - COMPLETE
+   CUSTOMERS v6 - COMPLETE
    ✅ GST Auto-Fetch (5 APIs)
    ✅ GST Portal Direct Link
    ✅ Helper Modal with Steps
    ✅ Firebase Sync
+   ✅ PDF Export (Branded)
    ============================================= */
 
 let customerSearchQuery = '';
@@ -24,6 +25,9 @@ function renderCustomers() {
             <div class="btn-group">
                 <button class="btn btn-secondary" onclick="openGSTSearchModal()">
                     <span class="material-icons-round">search</span> GST Search
+                </button>
+                <button class="btn" style="background:#dc2626;color:white" onclick="exportCustomersPDF()">
+                    <span class="material-icons-round">picture_as_pdf</span> PDF
                 </button>
                 <button class="btn btn-primary" onclick="openCustomerModal()">
                     <span class="material-icons-round">person_add</span> Add Customer
@@ -74,6 +78,20 @@ function renderCustomers() {
             </div>
         </div>
     `;
+}
+
+// ============================================
+// PDF EXPORT
+// ============================================
+function exportCustomersPDF() {
+    const customers = DB.searchCustomers(customerSearchQuery);
+    if (customers.length === 0) { showToast('No customers!', 'warning'); return; }
+    
+    if (typeof PDFExport !== 'undefined') {
+        PDFExport.exportCustomersList(customers);
+    } else {
+        showToast('PDF Export module not loaded!', 'error');
+    }
 }
 
 // ============================================
@@ -348,7 +366,6 @@ function openGSTPortalSearch() {
     const gstin = document.getElementById('custGst').value.trim().toUpperCase();
     
     if (!gstin) {
-        // No GSTIN, just open portal
         window.open('https://services.gst.gov.in/services/searchtp', '_blank');
         showToast('🌐 GST Portal opened. Enter GSTIN there and copy details back.', 'info');
         return;
@@ -359,14 +376,12 @@ function openGSTPortalSearch() {
         return;
     }
 
-    // Copy GSTIN to clipboard
     if (navigator.clipboard) {
         navigator.clipboard.writeText(gstin).then(() => {
             console.log('GSTIN copied to clipboard');
         }).catch(err => console.log('Clipboard error:', err));
     }
 
-    // Show helper modal
     showGSTPortalHelperModal(gstin);
 }
 
@@ -375,8 +390,6 @@ function openGSTPortalSearch() {
 // ============================================
 function showGSTPortalHelperModal(gstin) {
     const existingModal = document.getElementById('modalContent');
-    
-    // Save current customer modal content
     window._savedCustomerModal = existingModal.innerHTML;
 
     existingModal.innerHTML = `
@@ -466,13 +479,11 @@ function showGSTPortalHelperModal(gstin) {
     `;
 }
 
-// Open GST Portal in new tab
 function openGSTPortalNow(gstin) {
     window.open('https://services.gst.gov.in/services/searchtp', '_blank');
     showToast(`✅ GST Portal opened! GSTIN ${gstin} in clipboard. Paste it there.`, 'success');
 }
 
-// Close helper modal and reopen customer form
 function closeGSTHelperAndReopenCustomer() {
     if (window._savedCustomerModal) {
         document.getElementById('modalContent').innerHTML = window._savedCustomerModal;
@@ -680,7 +691,6 @@ async function saveCustomer(id) {
         showToast('Customer added!', 'success');
     }
 
-    // Sync to Firebase
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.initialized && FirebaseSync.userId && saved) {
         try {
             await FirebaseSync.saveCustomer(saved);
@@ -701,7 +711,6 @@ async function deleteCustomerAction(id) {
     if (!confirmDialog('Delete this customer?')) return;
     const result = DB.deleteCustomer(id);
     if (result) {
-        // Sync delete to Firebase
         if (typeof FirebaseSync !== 'undefined' && FirebaseSync.initialized && FirebaseSync.userId) {
             try {
                 await FirebaseSync.deleteCustomer(id);

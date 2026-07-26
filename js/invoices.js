@@ -62,9 +62,12 @@ function renderInvoiceList() {
                 <h1>Invoices</h1>
                 <p>${invoices.length} invoices</p>
             </div>
-            <div class="btn-group">
+                        <div class="btn-group">
                 <button class="btn btn-secondary" onclick="exportExcel()">
                     <span class="material-icons-round">download</span> Excel
+                </button>
+                <button class="btn btn-secondary" onclick="exportInvoicesPDF()" style="background:#dc2626;color:white">
+                    <span class="material-icons-round">picture_as_pdf</span> PDF
                 </button>
                 <button class="btn btn-primary" onclick="navigateTo('newInvoice')">
                     <span class="material-icons-round">add</span> New Invoice
@@ -1041,4 +1044,16 @@ function exportExcel() {
     XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
     XLSX.writeFile(wb, `Tripzar_Invoices_${getTodayISO()}.xlsx`);
     showToast('📊 Excel exported!', 'success');
+}
+// ⭐ NEW: PDF Export for Invoices
+function exportInvoicesPDF() {
+    const invoices = DB.searchInvoices(invoiceSearchQuery, invoiceFilters);
+    if (invoices.length === 0) { showToast('No invoices!', 'warning'); return; }
+    
+    const filters = {};
+    if (invoiceSearchQuery) filters['Search'] = invoiceSearchQuery;
+    if (invoiceFilters.payment_status) filters['Status'] = invoiceFilters.payment_status.toUpperCase();
+    if (invoiceFilters.financial_year) filters['FY'] = invoiceFilters.financial_year;
+    
+    PDFExport.exportInvoicesList(invoices, filters);
 }

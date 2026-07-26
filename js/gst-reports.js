@@ -1,6 +1,8 @@
 /* =============================================
-   GST REPORTS v1.0 - CA-Ready Exports
-   GSTR-1, GSTR-2, HSN Summary, P&L
+   GST REPORTS v2 - CA-Ready Exports
+   ✅ GSTR-1, GSTR-2, HSN Summary, P&L, Ledgers
+   ✅ Both Excel + PDF exports
+   ✅ Comprehensive multi-sheet report
    ============================================= */
 
 const GSTReports = {
@@ -16,7 +18,6 @@ const GSTReports = {
     // Get Financial Year Range
     // ============================================
     getFYDates(fy) {
-        // fy = "2026-27"
         const [start, end] = fy.split('-');
         return {
             from: `${start}-04-01`,
@@ -126,7 +127,6 @@ const GSTReports = {
         const currentFY = getCurrentFY();
         const fyDates = this.getFYDates(currentFY);
         
-        // Default: Current FY
         if (!this.currentFilter.from_date) {
             this.currentFilter.from_date = fyDates.from;
             this.currentFilter.to_date = fyDates.to;
@@ -145,7 +145,7 @@ const GSTReports = {
             <div class="page-header">
                 <div class="page-header-title">
                     <h1>📊 GST Reports</h1>
-                    <p>CA-Ready Tax Reports & Exports</p>
+                    <p>CA-Ready Tax Reports & Exports (Excel + PDF)</p>
                 </div>
             </div>
 
@@ -155,7 +155,6 @@ const GSTReports = {
                     <span class="material-icons-round">filter_alt</span> Date Range Filter
                 </div>
                 
-                <!-- Quick Filters -->
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px">
                     <button class="btn btn-sm btn-secondary" onclick="GSTReports.setFilter('this_month')">This Month</button>
                     <button class="btn btn-sm btn-secondary" onclick="GSTReports.setFilter('last_month')">Last Month</button>
@@ -191,42 +190,36 @@ const GSTReports = {
             <!-- SUMMARY CARDS -->
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:16px">
                 
-                <!-- Sales -->
                 <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);padding:16px;border-radius:12px;border-left:4px solid #4caf50">
                     <div style="font-size:11px;color:#2e7d32;font-weight:700;text-transform:uppercase;letter-spacing:1px">💰 SALES (Outward)</div>
                     <div style="font-size:24px;font-weight:800;color:#1b5e20;margin-top:6px">${formatCurrency(summary.sales.totalGrand)}</div>
                     <div style="font-size:11px;color:#388e3c;margin-top:4px">${summary.sales.totalInvoices} invoices • ${summary.sales.b2bCount} B2B • ${summary.sales.b2cCount} B2C</div>
                 </div>
 
-                <!-- Purchase -->
                 <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);padding:16px;border-radius:12px;border-left:4px solid #ff9800">
                     <div style="font-size:11px;color:#e65100;font-weight:700;text-transform:uppercase;letter-spacing:1px">🛒 PURCHASE (Inward)</div>
                     <div style="font-size:24px;font-weight:800;color:#bf360c;margin-top:6px">${formatCurrency(summary.purchase.totalAmount)}</div>
                     <div style="font-size:11px;color:#f57c00;margin-top:4px">${summary.purchase.totalBills} bills</div>
                 </div>
 
-                <!-- Output GST -->
                 <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);padding:16px;border-radius:12px;border-left:4px solid #2196f3">
                     <div style="font-size:11px;color:#1565c0;font-weight:700;text-transform:uppercase;letter-spacing:1px">📤 OUTPUT GST</div>
                     <div style="font-size:24px;font-weight:800;color:#0d47a1;margin-top:6px">${formatCurrency(summary.sales.totalGST)}</div>
                     <div style="font-size:11px;color:#1976d2;margin-top:4px">Collected from customers</div>
                 </div>
 
-                <!-- Input GST -->
                 <div style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);padding:16px;border-radius:12px;border-left:4px solid #9c27b0">
                     <div style="font-size:11px;color:#6a1b9a;font-weight:700;text-transform:uppercase;letter-spacing:1px">📥 INPUT GST (ITC)</div>
                     <div style="font-size:24px;font-weight:800;color:#4a148c;margin-top:6px">${formatCurrency(summary.purchase.totalGST)}</div>
                     <div style="font-size:11px;color:#7b1fa2;margin-top:4px">Paid to suppliers</div>
                 </div>
 
-                <!-- Net GST Payable -->
                 <div style="background:linear-gradient(135deg,${summary.netGSTPayable > 0 ? '#ffebee,#ffcdd2' : '#e8f5e9,#c8e6c9'});padding:16px;border-radius:12px;border-left:4px solid ${summary.netGSTPayable > 0 ? '#f44336' : '#4caf50'}">
                     <div style="font-size:11px;color:${summary.netGSTPayable > 0 ? '#c62828' : '#2e7d32'};font-weight:700;text-transform:uppercase;letter-spacing:1px">${summary.netGSTPayable > 0 ? '💸' : '✅'} NET GST ${summary.netGSTPayable > 0 ? 'PAYABLE' : 'REFUNDABLE'}</div>
                     <div style="font-size:24px;font-weight:800;color:${summary.netGSTPayable > 0 ? '#b71c1c' : '#1b5e20'};margin-top:6px">${formatCurrency(Math.abs(summary.netGSTPayable))}</div>
                     <div style="font-size:11px;color:${summary.netGSTPayable > 0 ? '#d32f2f' : '#388e3c'};margin-top:4px">Output - Input</div>
                 </div>
 
-                <!-- Gross Profit -->
                 <div style="background:linear-gradient(135deg,#fff9c4,#fff59d);padding:16px;border-radius:12px;border-left:4px solid #fbc02d">
                     <div style="font-size:11px;color:#f57f17;font-weight:700;text-transform:uppercase;letter-spacing:1px">📈 GROSS PROFIT</div>
                     <div style="font-size:24px;font-weight:800;color:${summary.grossProfit >= 0 ? '#33691e' : '#c62828'};margin-top:6px">${formatCurrency(summary.grossProfit)}</div>
@@ -281,57 +274,128 @@ const GSTReports = {
                 </div>
                 
                 <div style="background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:14px;font-size:12px;color:#2e7d32">
-                    📌 <strong>Pro Tip:</strong> Download "Comprehensive Report" for CA — includes all sheets in one Excel file
+                    📌 <strong>Pro Tip:</strong> "Comprehensive Excel" mein sab kuch ek file mein hota hai — CA ko bhejne ke liye best!
                 </div>
 
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-                    <button class="btn btn-primary" onclick="GSTReports.exportComprehensive()" style="background:linear-gradient(135deg,#1a5632,#2d8a4e);padding:14px">
-                        <span class="material-icons-round">description</span>
-                        <div style="text-align:left;flex:1;margin-left:8px">
-                            <div style="font-weight:700">Comprehensive Report</div>
-                            <div style="font-size:10px;opacity:0.9">All-in-one for CA</div>
-                        </div>
-                    </button>
-                    
-                    <button class="btn btn-secondary" onclick="GSTReports.exportGSTR1()" style="padding:14px">
-                        <span class="material-icons-round">file_download</span>
-                        <div style="text-align:left;flex:1;margin-left:8px">
-                            <div style="font-weight:700">GSTR-1 (Sales)</div>
-                            <div style="font-size:10px;opacity:0.7">B2B + B2C</div>
-                        </div>
-                    </button>
-                    
-                    <button class="btn btn-secondary" onclick="GSTReports.exportGSTR2()" style="padding:14px">
-                        <span class="material-icons-round">shopping_cart</span>
-                        <div style="text-align:left;flex:1;margin-left:8px">
-                            <div style="font-weight:700">GSTR-2 (Purchases)</div>
-                            <div style="font-size:10px;opacity:0.7">Input Tax Credit</div>
-                        </div>
-                    </button>
-                    
-                    <button class="btn btn-secondary" onclick="GSTReports.exportHSNSummary()" style="padding:14px">
-                        <span class="material-icons-round">category</span>
-                        <div style="text-align:left;flex:1;margin-left:8px">
-                            <div style="font-weight:700">HSN Summary</div>
-                            <div style="font-size:10px;opacity:0.7">Item-wise report</div>
-                        </div>
-                    </button>
-                    
-                    <button class="btn btn-secondary" onclick="GSTReports.exportPL()" style="padding:14px">
-                        <span class="material-icons-round">trending_up</span>
-                        <div style="text-align:left;flex:1;margin-left:8px">
-                            <div style="font-weight:700">P&L Statement</div>
-                            <div style="font-size:10px;opacity:0.7">Profit & Loss</div>
-                        </div>
-                    </button>
+                <!-- 🏆 COMPREHENSIVE (Highlighted) -->
+                <button class="btn btn-primary" onclick="GSTReports.exportComprehensive()" style="background:linear-gradient(135deg,#1a5632,#2d8a4e);padding:14px;width:100%;margin-bottom:14px">
+                    <span class="material-icons-round">description</span>
+                    <div style="text-align:left;flex:1;margin-left:8px">
+                        <div style="font-weight:700;font-size:14px">📑 Comprehensive Excel Report (7 Sheets)</div>
+                        <div style="font-size:11px;opacity:0.9">Summary + GSTR-1 + GSTR-2 + HSN + Ledgers — All in ONE file</div>
+                    </div>
+                </button>
 
-                    <button class="btn btn-secondary" onclick="GSTReports.exportLedgers()" style="padding:14px">
-                        <span class="material-icons-round">account_balance_wallet</span>
-                        <div style="text-align:left;flex:1;margin-left:8px">
-                            <div style="font-weight:700">Ledgers</div>
-                            <div style="font-size:10px;opacity:0.7">Customer + Supplier</div>
-                        </div>
-                    </button>
+                <!-- GSTR-1 Row -->
+                <div style="background:#e8f5e9;padding:10px;border-radius:8px;margin-bottom:10px">
+                    <div style="font-weight:700;font-size:12px;color:#2e7d32;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">📤 GSTR-1 (Sales / Outward)</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        <button class="btn btn-secondary" onclick="GSTReports.exportGSTR1()" style="padding:10px">
+                            <span class="material-icons-round">table_view</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">GSTR-1 Excel</div>
+                                <div style="font-size:10px;opacity:0.7">B2B + B2C sheets</div>
+                            </div>
+                        </button>
+                        <button class="btn" onclick="GSTReports.exportGSTR1PDF()" style="background:#dc2626;color:white;padding:10px">
+                            <span class="material-icons-round">picture_as_pdf</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">GSTR-1 PDF</div>
+                                <div style="font-size:10px;opacity:0.9">Branded printable</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- GSTR-2 Row -->
+                <div style="background:#fff3e0;padding:10px;border-radius:8px;margin-bottom:10px">
+                    <div style="font-weight:700;font-size:12px;color:#e65100;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">📥 GSTR-2 (Purchases / Inward)</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        <button class="btn btn-secondary" onclick="GSTReports.exportGSTR2()" style="padding:10px">
+                            <span class="material-icons-round">table_view</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">GSTR-2 Excel</div>
+                                <div style="font-size:10px;opacity:0.7">Input Tax Credit</div>
+                            </div>
+                        </button>
+                        <button class="btn" onclick="GSTReports.exportGSTR2PDF()" style="background:#dc2626;color:white;padding:10px">
+                            <span class="material-icons-round">picture_as_pdf</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">GSTR-2 PDF</div>
+                                <div style="font-size:10px;opacity:0.9">Branded printable</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- HSN Summary Row -->
+                <div style="background:#f3e5f5;padding:10px;border-radius:8px;margin-bottom:10px">
+                    <div style="font-weight:700;font-size:12px;color:#6a1b9a;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">🏷️ HSN Summary</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        <button class="btn btn-secondary" onclick="GSTReports.exportHSNSummary()" style="padding:10px">
+                            <span class="material-icons-round">table_view</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">HSN Excel</div>
+                                <div style="font-size:10px;opacity:0.7">Item-wise report</div>
+                            </div>
+                        </button>
+                        <button class="btn" onclick="GSTReports.exportHSNSummaryPDF()" style="background:#dc2626;color:white;padding:10px">
+                            <span class="material-icons-round">picture_as_pdf</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">HSN PDF</div>
+                                <div style="font-size:10px;opacity:0.9">Branded printable</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- P&L Row -->
+                <div style="background:#fff9c4;padding:10px;border-radius:8px;margin-bottom:10px">
+                    <div style="font-weight:700;font-size:12px;color:#f57f17;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">📈 Profit & Loss Statement</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        <button class="btn btn-secondary" onclick="GSTReports.exportPL()" style="padding:10px">
+                            <span class="material-icons-round">table_view</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">P&L Excel</div>
+                                <div style="font-size:10px;opacity:0.7">Financial summary</div>
+                            </div>
+                        </button>
+                        <button class="btn" onclick="GSTReports.exportPLPDF()" style="background:#dc2626;color:white;padding:10px">
+                            <span class="material-icons-round">picture_as_pdf</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">P&L PDF</div>
+                                <div style="font-size:10px;opacity:0.9">Branded printable</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ledgers Row -->
+                <div style="background:#e3f2fd;padding:10px;border-radius:8px">
+                    <div style="font-weight:700;font-size:12px;color:#1565c0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">📚 Ledgers (Customer + Supplier)</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                        <button class="btn btn-secondary" onclick="GSTReports.exportLedgers()" style="padding:10px">
+                            <span class="material-icons-round">table_view</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:12px">Both Excel</div>
+                                <div style="font-size:10px;opacity:0.7">Cust + Supp</div>
+                            </div>
+                        </button>
+                        <button class="btn" onclick="GSTReports.exportCustomerLedgerPDF()" style="background:#dc2626;color:white;padding:10px">
+                            <span class="material-icons-round">picture_as_pdf</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:11px">Customer PDF</div>
+                                <div style="font-size:10px;opacity:0.9">Ledger</div>
+                            </div>
+                        </button>
+                        <button class="btn" onclick="GSTReports.exportSupplierLedgerPDF()" style="background:#dc2626;color:white;padding:10px">
+                            <span class="material-icons-round">picture_as_pdf</span>
+                            <div style="text-align:left;flex:1;margin-left:6px">
+                                <div style="font-weight:700;font-size:11px">Supplier PDF</div>
+                                <div style="font-size:10px;opacity:0.9">Ledger</div>
+                            </div>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -358,7 +422,6 @@ const GSTReports = {
     // TAB SWITCHING
     // ============================================
     showTab(tab, btn) {
-        // Update tab styles
         document.querySelectorAll('.tab-btn').forEach(b => {
             b.style.background = 'var(--bg)';
             b.style.color = 'var(--text)';
@@ -454,7 +517,6 @@ const GSTReports = {
     },
 
     renderHSNTable(invoices, purchases) {
-        // Aggregate by HSN code
         const hsnMap = {};
         
         invoices.forEach(inv => {
@@ -472,7 +534,7 @@ const GSTReports = {
         });
 
         purchases.forEach(p => {
-            const hsn = '998552'; // Default HSN for purchases
+            const hsn = '998552';
             if (!hsnMap[hsn]) {
                 hsnMap[hsn] = { hsn, description: p.category || '', sales: 0, salesTax: 0, purchase: 0, purchaseTax: 0 };
             }
@@ -515,7 +577,7 @@ const GSTReports = {
     setFilter(type, value) {
         const today = new Date();
         const y = today.getFullYear();
-        const m = today.getMonth() + 1; // 1-12
+        const m = today.getMonth() + 1;
 
         if (type === 'this_month') {
             const d = this.getMonthDates(y, m);
@@ -569,8 +631,10 @@ const GSTReports = {
     },
 
     // ============================================
-    // EXPORT: COMPREHENSIVE REPORT (All-in-One)
+    // EXCEL EXPORTS
     // ============================================
+    
+    // Comprehensive Excel (All in One)
     exportComprehensive() {
         const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
         const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
@@ -591,6 +655,7 @@ const GSTReports = {
             ['Company:', settings.company_name || 'Tripzar Holidays'],
             ['GSTIN:', settings.gstin || ''],
             ['PAN:', settings.pan || ''],
+            ['LLPIN:', settings.llpin || ''],
             ['Address:', `${settings.building || ''} ${settings.street || ''} ${settings.area || ''} ${settings.city || ''}`.trim()],
             [],
             ['Period From:', formatDate(this.currentFilter.from_date)],
@@ -631,7 +696,7 @@ const GSTReports = {
         coverWS['!cols'] = [{ wch: 30 }, { wch: 30 }];
         XLSX.utils.book_append_sheet(wb, coverWS, 'Summary');
 
-        // Sheet 2: GSTR-1 B2B (Registered customers)
+        // Sheet 2: GSTR-1 B2B
         const b2b = invoices.filter(inv => inv.customer_gst && inv.customer_gst.length >= 15);
         if (b2b.length > 0) {
             const b2bData = b2b.map((inv, idx) => ({
@@ -643,18 +708,14 @@ const GSTReports = {
                 'Invoice Value': inv.grand_total || 0,
                 'Place of Supply': inv.place_of_supply || inv.customer_state || '',
                 'Reverse Charge': 'N',
-                'Applicable Tax Rate': (inv.cgst_rate || 0) + (inv.sgst_rate || 0) + (inv.igst_rate || 0) + '%',
-                'Invoice Type': 'Regular',
-                'E-Commerce GSTIN': '',
                 'Rate': (inv.cgst_rate || 0) + (inv.sgst_rate || 0) + (inv.igst_rate || 0),
                 'Taxable Value': inv.taxable_amount || 0,
                 'CGST Amount': inv.cgst_amount || 0,
                 'SGST Amount': inv.sgst_amount || 0,
-                'IGST Amount': inv.igst_amount || 0,
-                'Cess Amount': 0
+                'IGST Amount': inv.igst_amount || 0
             }));
             const b2bWS = XLSX.utils.json_to_sheet(b2bData);
-            b2bWS['!cols'] = Array(17).fill({ wch: 15 });
+            b2bWS['!cols'] = Array(13).fill({ wch: 15 });
             XLSX.utils.book_append_sheet(wb, b2bWS, 'GSTR-1 B2B');
         }
 
@@ -690,7 +751,7 @@ const GSTReports = {
                 'Category': p.category || '',
                 'Description': p.description || '',
                 'Taxable Value': p.base_amount || 0,
-                'Rate': p.gst_rate + '%',
+                'Rate': (p.gst_rate || 0) + '%',
                 'GST Amount (ITC)': p.gst_amount || 0,
                 'Total Amount': p.total_amount || 0,
                 'Payment Status': p.payment_status,
@@ -792,21 +853,17 @@ const GSTReports = {
             XLSX.utils.book_append_sheet(wb, slWS, 'Supplier Ledger');
         }
 
-        const fileName = `GST_Report_${this.currentFilter.from_date}_to_${this.currentFilter.to_date}.xlsx`;
-        XLSX.writeFile(wb, fileName);
+        XLSX.writeFile(wb, `GST_Report_${this.currentFilter.from_date}_to_${this.currentFilter.to_date}.xlsx`);
         showToast('📊 Comprehensive report exported!', 'success');
     },
 
-    // ============================================
-    // EXPORT: GSTR-1 (Sales only)
-    // ============================================
+    // GSTR-1 Excel
     exportGSTR1() {
         const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
         if (invoices.length === 0) { showToast('No sales in period!', 'warning'); return; }
 
         const wb = XLSX.utils.book_new();
 
-        // B2B
         const b2b = invoices.filter(inv => inv.customer_gst && inv.customer_gst.length >= 15);
         if (b2b.length > 0) {
             const data = b2b.map((inv, idx) => ({
@@ -828,7 +885,6 @@ const GSTReports = {
             XLSX.utils.book_append_sheet(wb, ws, 'B2B');
         }
 
-        // B2C
         const b2c = invoices.filter(inv => !inv.customer_gst || inv.customer_gst.length < 15);
         if (b2c.length > 0) {
             const data = b2c.map((inv, idx) => ({
@@ -853,9 +909,7 @@ const GSTReports = {
         showToast('📊 GSTR-1 exported!', 'success');
     },
 
-    // ============================================
-    // EXPORT: GSTR-2 (Purchases)
-    // ============================================
+    // GSTR-2 Excel
     exportGSTR2() {
         const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
         if (purchases.length === 0) { showToast('No purchases in period!', 'warning'); return; }
@@ -868,7 +922,7 @@ const GSTReports = {
             'Bill Date': p.bill_date,
             'Category': p.category,
             'Taxable Value': p.base_amount || 0,
-            'Rate': p.gst_rate + '%',
+            'Rate': (p.gst_rate || 0) + '%',
             'Input GST (ITC)': p.gst_amount || 0,
             'Total': p.total_amount || 0
         }));
@@ -881,9 +935,7 @@ const GSTReports = {
         showToast('📊 GSTR-2 exported!', 'success');
     },
 
-    // ============================================
-    // EXPORT: HSN Summary
-    // ============================================
+    // HSN Summary Excel
     exportHSNSummary() {
         const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
         const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
@@ -930,9 +982,7 @@ const GSTReports = {
         showToast('📊 HSN Summary exported!', 'success');
     },
 
-    // ============================================
-    // EXPORT: P&L Statement
-    // ============================================
+    // P&L Excel
     exportPL() {
         const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
         const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
@@ -973,15 +1023,12 @@ const GSTReports = {
         showToast('📊 P&L Statement exported!', 'success');
     },
 
-    // ============================================
-    // EXPORT: Ledgers (Customer + Supplier)
-    // ============================================
+    // Ledgers Excel
     exportLedgers() {
         const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
         const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
         const wb = XLSX.utils.book_new();
 
-        // Customer Ledger
         const customerMap = {};
         invoices.forEach(inv => {
             const key = inv.customer_name || 'Unknown';
@@ -1006,7 +1053,6 @@ const GSTReports = {
             XLSX.utils.book_append_sheet(wb, ws, 'Customer Ledger');
         }
 
-        // Supplier Ledger
         const supplierMap = {};
         purchases.forEach(p => {
             const key = p.supplier_name || 'Unknown';
@@ -1032,7 +1078,142 @@ const GSTReports = {
 
         XLSX.writeFile(wb, `Ledgers_${this.currentFilter.from_date}_to_${this.currentFilter.to_date}.xlsx`);
         showToast('📊 Ledgers exported!', 'success');
+    },
+
+    // ============================================
+    // ⭐ PDF EXPORTS (Branded)
+    // ============================================
+
+    getFilterInfo() {
+        return {
+            'From': formatDate(this.currentFilter.from_date),
+            'To': formatDate(this.currentFilter.to_date)
+        };
+    },
+
+    exportGSTR1PDF() {
+        const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
+        if (invoices.length === 0) { showToast('No sales in period!', 'warning'); return; }
+        
+        if (typeof PDFExport === 'undefined') {
+            showToast('PDF Export module not loaded!', 'error');
+            return;
+        }
+        
+        PDFExport.exportGSTR1(invoices, this.getFilterInfo());
+    },
+
+    exportGSTR2PDF() {
+        const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
+        if (purchases.length === 0) { showToast('No purchases in period!', 'warning'); return; }
+        
+        if (typeof PDFExport === 'undefined') {
+            showToast('PDF Export module not loaded!', 'error');
+            return;
+        }
+        
+        PDFExport.exportGSTR2(purchases, this.getFilterInfo());
+    },
+
+    exportHSNSummaryPDF() {
+        const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
+        const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
+
+        const hsnMap = {};
+        invoices.forEach(inv => {
+            (inv.items || []).forEach(item => {
+                const hsn = item.hsn || '998552';
+                if (!hsnMap[hsn]) hsnMap[hsn] = { hsn, description: item.description || '', sales: 0, salesTax: 0, purchase: 0, purchaseTax: 0, count: 0 };
+                hsnMap[hsn].sales += parseFloat(item.amount) || 0;
+                hsnMap[hsn].count++;
+                if (!item.is_pure_agent) {
+                    const rate = parseFloat(item.gst_rate) || 0;
+                    hsnMap[hsn].salesTax += ((parseFloat(item.amount) || 0) * rate / 100);
+                }
+            });
+        });
+        purchases.forEach(p => {
+            const hsn = '998552';
+            if (!hsnMap[hsn]) hsnMap[hsn] = { hsn, description: p.category || '', sales: 0, salesTax: 0, purchase: 0, purchaseTax: 0, count: 0 };
+            hsnMap[hsn].purchase += p.base_amount || 0;
+            hsnMap[hsn].purchaseTax += p.gst_amount || 0;
+        });
+
+        const hsnData = Object.values(hsnMap);
+        if (hsnData.length === 0) { showToast('No data!', 'warning'); return; }
+
+        if (typeof PDFExport === 'undefined') {
+            showToast('PDF Export module not loaded!', 'error');
+            return;
+        }
+
+        PDFExport.exportHSNSummary(hsnData, this.getFilterInfo());
+    },
+
+    exportPLPDF() {
+        const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
+        const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
+        const summary = this.calculateSummary(invoices, purchases);
+        
+        if (typeof PDFExport === 'undefined') {
+            showToast('PDF Export module not loaded!', 'error');
+            return;
+        }
+        
+        PDFExport.exportPL(summary, this.getFilterInfo());
+    },
+
+    exportCustomerLedgerPDF() {
+        const invoices = this.filterInvoicesByDate(DB.getActiveInvoices(), this.currentFilter.from_date, this.currentFilter.to_date);
+        if (invoices.length === 0) { showToast('No sales in period!', 'warning'); return; }
+
+        const customerMap = {};
+        invoices.forEach(inv => {
+            const key = inv.customer_name || 'Unknown';
+            if (!customerMap[key]) customerMap[key] = { name: key, gstin: inv.customer_gst || '', phone: inv.customer_phone || '', count: 0, total: 0, paid: 0 };
+            customerMap[key].count++;
+            customerMap[key].total += inv.grand_total || 0;
+            if (inv.payment_status === 'paid') customerMap[key].paid += inv.grand_total || 0;
+        });
+
+        const customers = Object.values(customerMap).map(c => ({
+            ...c,
+            outstanding: c.total - c.paid
+        }));
+
+        if (typeof PDFExport === 'undefined') {
+            showToast('PDF Export module not loaded!', 'error');
+            return;
+        }
+
+        PDFExport.exportCustomerLedger(customers, this.getFilterInfo());
+    },
+
+    exportSupplierLedgerPDF() {
+        const purchases = this.filterPurchasesByDate(DB.getActivePurchases(), this.currentFilter.from_date, this.currentFilter.to_date);
+        if (purchases.length === 0) { showToast('No purchases in period!', 'warning'); return; }
+
+        const supplierMap = {};
+        purchases.forEach(p => {
+            const key = p.supplier_name || 'Unknown';
+            if (!supplierMap[key]) supplierMap[key] = { name: key, gstin: p.supplier_gst || '', count: 0, total: 0, paid: 0 };
+            supplierMap[key].count++;
+            supplierMap[key].total += p.total_amount || 0;
+            supplierMap[key].paid += p.paid_amount || 0;
+        });
+
+        const suppliers = Object.values(supplierMap).map(s => ({
+            ...s,
+            pending: s.total - s.paid
+        }));
+
+        if (typeof PDFExport === 'undefined') {
+            showToast('PDF Export module not loaded!', 'error');
+            return;
+        }
+
+        PDFExport.exportSupplierLedger(suppliers, this.getFilterInfo());
     }
 };
 
-console.log('✅ GST Reports module loaded');
+console.log('✅ GST Reports v2 module loaded');

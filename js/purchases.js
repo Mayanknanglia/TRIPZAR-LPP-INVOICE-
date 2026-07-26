@@ -27,9 +27,12 @@ function renderPurchaseList() {
                 <h1>Purchases</h1>
                 <p>${purchases.length} bills • Total: ${formatCurrency(totalAmount)} • Pending: <span style="color:var(--danger);font-weight:700">${formatCurrency(totalPending)}</span></p>
             </div>
-            <div class="btn-group">
+                       <div class="btn-group">
                 <button class="btn btn-secondary" onclick="exportPurchasesExcel()">
                     <span class="material-icons-round">download</span> Excel
+                </button>
+                <button class="btn btn-secondary" onclick="exportPurchasesPDF()" style="background:#dc2626;color:white">
+                    <span class="material-icons-round">picture_as_pdf</span> PDF
                 </button>
                 <button class="btn btn-primary" onclick="navigateTo('newPurchase')">
                     <span class="material-icons-round">add</span> New Purchase
@@ -717,4 +720,17 @@ function exportPurchasesExcel() {
     XLSX.utils.book_append_sheet(wb, ws, 'Purchases');
     XLSX.writeFile(wb, `Tripzar_Purchases_${getTodayISO()}.xlsx`);
     showToast('📊 Excel exported!', 'success');
+}
+// ⭐ NEW: PDF Export for Purchases
+function exportPurchasesPDF() {
+    const purchases = DB.searchPurchases(purchaseSearchQuery, purchaseFilters);
+    if (purchases.length === 0) { showToast('No purchases!', 'warning'); return; }
+    
+    const filters = {};
+    if (purchaseSearchQuery) filters['Search'] = purchaseSearchQuery;
+    if (purchaseFilters.category) filters['Category'] = purchaseFilters.category;
+    if (purchaseFilters.payment_status) filters['Status'] = purchaseFilters.payment_status.toUpperCase();
+    if (purchaseFilters.financial_year) filters['FY'] = purchaseFilters.financial_year;
+    
+    PDFExport.exportPurchasesList(purchases, filters);
 }
