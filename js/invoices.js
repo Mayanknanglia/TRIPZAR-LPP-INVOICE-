@@ -1,5 +1,5 @@
 ﻿/* =============================================
-   INVOICES v11 - Supplier + Drive + WhatsApp + Email
+   INVOICES v12 - Round Off (Add/Less) + No Discount
    ============================================= */
 
 let invoiceSearchQuery = '';
@@ -303,18 +303,24 @@ function renderInvoiceForm(prefillData = null) {
             </div>
         </div>
 
+        <!-- ⭐ ROUND OFF (Add / Less) -->
         <div class="card card-body" style="margin-bottom:16px">
             <div class="section-heading" style="margin-top:0">
-                <span class="material-icons-round">tune</span> Adjustments
+                <span class="material-icons-round">tune</span> Round Off
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Discount (₹)</label>
-                    <input type="number" id="invDiscount" step="0.01" value="${inv.discount || ''}" placeholder="0.00" oninput="recalculateAll()">
+                    <label>Round Off Type</label>
+                    <select id="invRoundOffType" onchange="recalculateAll()">
+                        <option value="none" ${(!inv.round_off_type || inv.round_off_type === 'none') ? 'selected' : ''}>No Round Off</option>
+                        <option value="add" ${inv.round_off_type === 'add' ? 'selected' : ''}>+ Add (Round Up)</option>
+                        <option value="less" ${inv.round_off_type === 'less' ? 'selected' : ''}>- Less (Round Down)</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>Round Off (₹)</label>
-                    <input type="number" id="invRoundOff" step="0.01" value="${inv.round_off || ''}" placeholder="0.00" oninput="recalculateAll()">
+                    <label>Round Off Amount (₹)</label>
+                    <input type="number" id="invRoundOff" step="0.01" value="${inv.round_off_amount || Math.abs(inv.round_off || 0) || ''}" placeholder="0.00" oninput="recalculateAll()">
+                    <small class="input-hint">Enter positive value; type controls +/-</small>
                 </div>
             </div>
         </div>
@@ -356,12 +362,10 @@ function renderInvoiceForm(prefillData = null) {
                     <div class="form-group" style="margin-bottom:0">
                         <label style="font-size:12px">Supplier Invoice No.</label>
                         <input type="text" id="invSupplierInvNo" value="${inv.supplier_invoice_no || ''}" placeholder="e.g. TF/2026/INV-1234" style="font-family:monospace">
-                        <small class="input-hint">Invoice number given by supplier</small>
                     </div>
                     <div class="form-group" style="margin-bottom:0">
                         <label style="font-size:12px">Supplier Invoice Date</label>
                         <input type="date" id="invSupplierInvDate" value="${inv.supplier_invoice_date || ''}">
-                        <small class="input-hint">Date on supplier's invoice</small>
                     </div>
                 </div>
             </div>
@@ -575,8 +579,12 @@ function recalculateAll() {
     const custId = document.getElementById('invCustomer')?.value;
     const customer = custId ? DB.getCustomerById(custId) : null;
     const pos = document.getElementById('invPlaceOfSupply')?.value || '';
-    const discount = parseFloat(document.getElementById('invDiscount')?.value) || 0;
-    const roundOff = parseFloat(document.getElementById('invRoundOff')?.value) || 0;
+    
+    // ⭐ Round Off (Add / Less / None)
+    const roundOffAmount = parseFloat(document.getElementById('invRoundOff')?.value) || 0;
+    const roundOffType = document.getElementById('invRoundOffType')?.value || 'none';
+    const roundOff = roundOffType === 'add' ? roundOffAmount : (roundOffType === 'less' ? -roundOffAmount : 0);
+    
     const supplierTotal = parseFloat(document.getElementById('invSupplierTotal')?.value) || 0;
 
     const custCountry = customer?.country || (INDIAN_STATES[pos] ? 'India' : (COUNTRIES.includes(pos) ? pos : 'India'));
@@ -607,7 +615,7 @@ function recalculateAll() {
     });
 
     const totalTax = tCgst + tSgst + tIgst;
-    const grand = pureTotal + taxTotal + totalTax - discount + roundOff;
+    const grand = pureTotal + taxTotal + totalTax + roundOff;
     const grossP = grand - supplierTotal;
     const netP = grossP - totalTax;
 
@@ -635,8 +643,7 @@ function recalculateAll() {
         ${pureTotal > 0 ? `<div class="calc-row" style="border-top:1px dashed var(--border);padding-top:6px"><span class="calc-label"><strong>Pure Agent:</strong></span><span class="calc-value"><strong>₹${formatNum(pureTotal)}</strong></span></div>` : ''}
         ${taxTotal > 0 ? `<div class="calc-row"><span class="calc-label"><strong>Taxable:</strong></span><span class="calc-value"><strong>₹${formatNum(taxTotal)}</strong></span></div>` : ''}
         ${gstHtml}
-        ${discount > 0 ? `<div class="calc-row"><span class="calc-label">Discount:</span><span class="calc-value">-₹${formatNum(discount)}</span></div>` : ''}
-        ${roundOff !== 0 ? `<div class="calc-row"><span class="calc-label">Round Off:</span><span class="calc-value">${roundOff<0?'(-)':''}₹${formatNum(Math.abs(roundOff))}</span></div>` : ''}
+        ${roundOffType !== 'none' && roundOffAmount > 0 ? `<div class="calc-row"><span class="calc-label">Round Off (${roundOffType === 'add' ? 'Add' : 'Less'}):</span><span class="calc-value" style="color:${roundOffType === 'add' ? 'var(--success)' : 'var(--danger)'}">${roundOffType === 'less' ? '- ' : '+ '}₹${formatNum(roundOffAmount)}</span></div>` : ''}
         <div class="calc-row total"><span class="calc-label">Grand Total:</span><span class="calc-value">₹${formatNum(grand)}</span></div>
         <div class="calc-words">${numberToWords(grand)}</div>
         ${supplierTotal > 0 ? `
@@ -672,8 +679,12 @@ async function saveInvoice() {
 
     const customer = DB.getCustomerById(custId);
     const settings = DB.getSettings();
-    const discount = parseFloat(document.getElementById('invDiscount').value) || 0;
-    const roundOff = parseFloat(document.getElementById('invRoundOff').value) || 0;
+    
+    // ⭐ Round Off
+    const roundOffAmount = parseFloat(document.getElementById('invRoundOff').value) || 0;
+    const roundOffType = document.getElementById('invRoundOffType').value || 'none';
+    const roundOff = roundOffType === 'add' ? roundOffAmount : (roundOffType === 'less' ? -roundOffAmount : 0);
+    
     const pos = document.getElementById('invPlaceOfSupply').value;
     const supplierTotal = parseFloat(document.getElementById('invSupplierTotal').value) || 0;
 
@@ -699,7 +710,7 @@ async function saveInvoice() {
     });
 
     const totalTax = tCgst + tSgst + tIgst;
-    const grand = pureTotal + taxTotal + totalTax - discount + roundOff;
+    const grand = pureTotal + taxTotal + totalTax + roundOff;
     const grossP = grand - supplierTotal;
     const netP = grossP - totalTax;
 
@@ -727,8 +738,10 @@ async function saveInvoice() {
         booking_service_gst_rate: validItems.find(i => !i.is_pure_agent)?.gst_rate || 18,
         hotel_reimbursement: pureTotal,
         other_charges: 0,
-        discount: discount,
+        discount: 0,
         round_off: roundOff,
+        round_off_type: roundOffType,
+        round_off_amount: roundOffAmount,
         taxable_amount: taxTotal,
         cgst_rate: cgstR, cgst_amount: tCgst,
         sgst_rate: sgstR, sgst_amount: tSgst,
@@ -770,16 +783,11 @@ async function saveInvoice() {
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.initialized && FirebaseSync.userId && savedInvoice) {
         try {
             await FirebaseSync.saveInvoice(savedInvoice);
-            console.log('☁️ Invoice synced to Firebase');
-        } catch (e) {
-            console.error('Firebase sync failed:', e);
-        }
+        } catch (e) { console.error('Firebase sync failed:', e); }
     }
 
     if (typeof Drive !== 'undefined' && Drive.AUTO_SAVE_ENABLED && Drive.isConfigured() && savedInvoiceId) {
-        console.log('🔄 Auto-Save enabled, uploading to Drive...');
         showToast('☁️ Uploading to Drive...', 'info');
-        
         setTimeout(async () => {
             try {
                 await Drive.autoSaveInvoice(savedInvoiceId);
@@ -823,11 +831,9 @@ function duplicateInvoice(id) {
 async function deleteInvoiceAction(id) {
     if (!confirmDialog('Delete this invoice?')) return;
     DB.deleteInvoice(id);
-    
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
         await FirebaseSync.deleteInvoice(id);
     }
-    
     showToast('Deleted!', 'success');
     renderInvoiceList();
 }
@@ -935,6 +941,15 @@ function viewInvoice(id) {
                 </table>
             ` : ''}
 
+            ${inv.round_off_type && inv.round_off_type !== 'none' && inv.round_off_amount > 0 ? `
+                <div style="text-align:right;padding:6px 0;font-size:13px;color:var(--text-secondary)">
+                    Round Off (${inv.round_off_type === 'add' ? 'Add' : 'Less'}): 
+                    <strong style="color:${inv.round_off_type === 'add' ? 'var(--success)' : 'var(--danger)'}">
+                        ${inv.round_off_type === 'less' ? '- ' : '+ '}${formatCurrency(inv.round_off_amount)}
+                    </strong>
+                </div>
+            ` : ''}
+
             <div style="display:flex;justify-content:space-between;padding:16px 0;border-top:2px solid var(--border)">
                 <div>
                     <p style="font-size:12px;color:var(--text-muted)">Amount in words:</p>
@@ -1007,6 +1022,7 @@ function exportExcel() {
             'SGST': inv.sgst_amount || 0,
             'IGST': inv.igst_amount || 0,
             'Total Tax': inv.total_tax || 0,
+            'Round Off': inv.round_off || 0,
             'Grand Total': inv.grand_total || 0,
             'Supplier': inv.supplier_name || '',
             'Supplier Inv No': inv.supplier_invoice_no || '',
@@ -1021,7 +1037,7 @@ function exportExcel() {
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = Array(28).fill({ wch: 16 });
+    ws['!cols'] = Array(29).fill({ wch: 16 });
     XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
     XLSX.writeFile(wb, `Tripzar_Invoices_${getTodayISO()}.xlsx`);
     showToast('📊 Excel exported!', 'success');

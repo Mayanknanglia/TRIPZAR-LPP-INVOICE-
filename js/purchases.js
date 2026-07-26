@@ -1,5 +1,5 @@
 /* =============================================
-   PURCHASES v1.0 - Purchase Management
+   PURCHASES v2 - Main Amount + Service Fee (separate GST)
    ============================================= */
 
 let purchaseSearchQuery = '';
@@ -12,9 +12,6 @@ const PURCHASE_CATEGORIES = [
     'Software', 'Utilities', 'Miscellaneous'
 ];
 
-// ============================================
-// PURCHASE LIST
-// ============================================
 function renderPurchaseList() {
     const purchases = DB.searchPurchases(purchaseSearchQuery, purchaseFilters);
     const fys = [...new Set(DB.getActivePurchases().map(p => p.financial_year))].filter(Boolean).sort().reverse();
@@ -118,9 +115,6 @@ function renderPurchaseList() {
     `;
 }
 
-// ============================================
-// PURCHASE FORM
-// ============================================
 function renderPurchaseForm(prefillData = null) {
     editingPurchaseId = prefillData?.id || null;
     const isEdit = !!editingPurchaseId;
@@ -196,32 +190,82 @@ function renderPurchaseForm(prefillData = null) {
             </div>
         </div>
 
+        <!-- ⭐ AMOUNT DETAILS (Main + Service Fee separate) -->
         <div class="card card-body" style="margin-bottom:16px">
             <div class="section-heading" style="margin-top:0">
                 <span class="material-icons-round">calculate</span> Amount Details
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Base Amount (₹) *</label>
-                    <input type="number" id="purBaseAmount" step="0.01" value="${p.base_amount || ''}" oninput="calcPurchaseTotal()" style="font-weight:700">
+            
+            <!-- MAIN AMOUNT -->
+            <div style="background:#f0f7ff;padding:12px;border-radius:8px;margin-bottom:12px;border:1px solid #4285F4">
+                <div style="font-size:12px;font-weight:700;color:#1a73e8;margin-bottom:10px">
+                    💰 Main Amount (Booking / Product)
                 </div>
-                <div class="form-group">
-                    <label>GST Rate (%)</label>
-                    <select id="purGstRate" onchange="calcPurchaseTotal()">
-                        <option value="0" ${p.gst_rate==0?'selected':''}>0% (No GST)</option>
-                        <option value="5" ${p.gst_rate==5?'selected':''}>5%</option>
-                        <option value="12" ${p.gst_rate==12?'selected':''}>12%</option>
-                        <option value="18" ${p.gst_rate==18 || !p.gst_rate?'selected':''}>18%</option>
-                        <option value="28" ${p.gst_rate==28?'selected':''}>28%</option>
-                    </select>
+                <div class="form-row" style="margin-bottom:0">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Amount (₹) *</label>
+                        <input type="number" id="purMainAmount" step="0.01" value="${p.main_amount || p.base_amount || ''}" oninput="calcPurchaseTotal()" style="font-weight:700">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Included?</label>
+                        <select id="purMainGstInclusive" onchange="calcPurchaseTotal()">
+                            <option value="no" ${p.main_gst_inclusive === 'no' || !p.main_gst_inclusive ? 'selected' : ''}>No (Add GST on top)</option>
+                            <option value="yes" ${p.main_gst_inclusive === 'yes' ? 'selected' : ''}>Yes (GST already in amount)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Rate (%)</label>
+                        <select id="purMainGstRate" onchange="calcPurchaseTotal()">
+                            <option value="0" ${p.main_gst_rate == 0 ? 'selected' : ''}>0% (No GST)</option>
+                            <option value="5" ${p.main_gst_rate == 5 ? 'selected' : ''}>5%</option>
+                            <option value="12" ${p.main_gst_rate == 12 ? 'selected' : ''}>12%</option>
+                            <option value="18" ${(p.main_gst_rate == 18 || (!p.main_gst_rate && p.main_gst_rate !== 0)) ? 'selected' : ''}>18%</option>
+                            <option value="28" ${p.main_gst_rate == 28 ? 'selected' : ''}>28%</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>GST Amount (auto)</label>
-                    <input type="text" id="purGstAmount" readonly style="background:var(--bg);font-weight:700">
+            </div>
+
+            <!-- SERVICE FEE -->
+            <div style="background:#fff8e6;padding:12px;border-radius:8px;margin-bottom:12px;border:1px solid #ffa500">
+                <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:10px">
+                    💼 Service Fee (Optional)
                 </div>
-                <div class="form-group">
-                    <label>Total Amount (auto)</label>
-                    <input type="text" id="purTotalAmount" readonly style="background:var(--bg);font-weight:800;color:var(--primary);font-size:15px">
+                <div class="form-row" style="margin-bottom:0">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Service Fee (₹)</label>
+                        <input type="number" id="purServiceFee" step="0.01" value="${p.service_fee || ''}" oninput="calcPurchaseTotal()" placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Included?</label>
+                        <select id="purServiceGstInclusive" onchange="calcPurchaseTotal()">
+                            <option value="no" ${p.service_gst_inclusive === 'no' || !p.service_gst_inclusive ? 'selected' : ''}>No (Add GST on top)</option>
+                            <option value="yes" ${p.service_gst_inclusive === 'yes' ? 'selected' : ''}>Yes (GST already in amount)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Rate (%)</label>
+                        <select id="purServiceGstRate" onchange="calcPurchaseTotal()">
+                            <option value="0" ${p.service_gst_rate == 0 ? 'selected' : ''}>0%</option>
+                            <option value="5" ${p.service_gst_rate == 5 ? 'selected' : ''}>5%</option>
+                            <option value="12" ${p.service_gst_rate == 12 ? 'selected' : ''}>12%</option>
+                            <option value="18" ${(p.service_gst_rate == 18 || (!p.service_gst_rate && p.service_gst_rate !== 0)) ? 'selected' : ''}>18%</option>
+                            <option value="28" ${p.service_gst_rate == 28 ? 'selected' : ''}>28%</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOTAL BREAKDOWN -->
+            <div style="background:var(--bg);padding:14px;border-radius:8px;border:2px solid var(--primary)">
+                <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px">📊 Total Breakdown</div>
+                <div class="calc-box" style="padding:0;background:transparent;border:none">
+                    <div class="calc-row"><span class="calc-label">Main Base:</span><span class="calc-value" id="purCalcMainBase">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label">Main GST:</span><span class="calc-value" id="purCalcMainGst">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label">Service Base:</span><span class="calc-value" id="purCalcServiceBase">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label">Service GST:</span><span class="calc-value" id="purCalcServiceGst">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label"><strong>Total GST:</strong></span><span class="calc-value" id="purCalcTotalGst" style="font-weight:700;color:var(--info)">₹0.00</span></div>
+                    <div class="calc-row total"><span class="calc-label">Grand Total:</span><span class="calc-value" id="purCalcGrandTotal">₹0.00</span></div>
                 </div>
             </div>
         </div>
@@ -334,7 +378,8 @@ function onSupplierChange() {
 
 function onPayStatusChange() {
     const status = document.getElementById('purPayStatus').value;
-    const total = parseFloat(document.getElementById('purTotalAmount').value.replace(/[^0-9.]/g, '')) || 0;
+    const calc = calcPurchaseTotal();
+    const total = calc.grandTotal;
     if (status === 'paid') {
         document.getElementById('purPaidAmount').value = total.toFixed(2);
         if (!document.getElementById('purPayDate').value) {
@@ -345,16 +390,56 @@ function onPayStatusChange() {
     }
 }
 
+// ⭐ NEW: Calculate main + service fee separately
 function calcPurchaseTotal() {
-    const base = parseFloat(document.getElementById('purBaseAmount')?.value) || 0;
-    const gstRate = parseFloat(document.getElementById('purGstRate')?.value) || 0;
-    const gstAmt = base * gstRate / 100;
-    const total = base + gstAmt;
-
-    const gstEl = document.getElementById('purGstAmount');
-    const totalEl = document.getElementById('purTotalAmount');
-    if (gstEl) gstEl.value = formatCurrency(gstAmt);
-    if (totalEl) totalEl.value = formatCurrency(total);
+    // Main Amount
+    const mainAmount = parseFloat(document.getElementById('purMainAmount')?.value) || 0;
+    const mainGstInclusive = document.getElementById('purMainGstInclusive')?.value === 'yes';
+    const mainGstRate = parseFloat(document.getElementById('purMainGstRate')?.value) || 0;
+    
+    let mainBase, mainGst;
+    if (mainGstInclusive && mainGstRate > 0) {
+        // GST already in amount, extract it
+        mainBase = mainAmount / (1 + mainGstRate / 100);
+        mainGst = mainAmount - mainBase;
+    } else {
+        // Add GST on top (or no GST)
+        mainBase = mainAmount;
+        mainGst = mainAmount * mainGstRate / 100;
+    }
+    const mainTotal = mainBase + mainGst;
+    
+    // Service Fee
+    const serviceFee = parseFloat(document.getElementById('purServiceFee')?.value) || 0;
+    const serviceGstInclusive = document.getElementById('purServiceGstInclusive')?.value === 'yes';
+    const serviceGstRate = parseFloat(document.getElementById('purServiceGstRate')?.value) || 0;
+    
+    let serviceBase, serviceGst;
+    if (serviceGstInclusive && serviceGstRate > 0) {
+        serviceBase = serviceFee / (1 + serviceGstRate / 100);
+        serviceGst = serviceFee - serviceBase;
+    } else {
+        serviceBase = serviceFee;
+        serviceGst = serviceFee * serviceGstRate / 100;
+    }
+    const serviceTotal = serviceBase + serviceGst;
+    
+    const totalGst = mainGst + serviceGst;
+    const grandTotal = mainTotal + serviceTotal;
+    
+    // Update UI
+    const setV = (id, val) => { 
+        const el = document.getElementById(id); 
+        if (el) el.textContent = formatCurrency(val); 
+    };
+    setV('purCalcMainBase', mainBase);
+    setV('purCalcMainGst', mainGst);
+    setV('purCalcServiceBase', serviceBase);
+    setV('purCalcServiceGst', serviceGst);
+    setV('purCalcTotalGst', totalGst);
+    setV('purCalcGrandTotal', grandTotal);
+    
+    return { mainBase, mainGst, serviceBase, serviceGst, totalGst, grandTotal, mainTotal, serviceTotal };
 }
 
 async function savePurchase() {
@@ -362,12 +447,13 @@ async function savePurchase() {
     const billDate = document.getElementById('purBillDate').value;
     const supplierName = document.getElementById('purSupplier').value.trim();
     const category = document.getElementById('purCategory').value;
-    const base = parseFloat(document.getElementById('purBaseAmount').value) || 0;
+    const mainAmt = parseFloat(document.getElementById('purMainAmount').value) || 0;
+    const svcAmt = parseFloat(document.getElementById('purServiceFee').value) || 0;
 
     if (!billNo) { showToast('Bill number required!', 'error'); return; }
     if (!billDate) { showToast('Bill date required!', 'error'); return; }
     if (!supplierName) { showToast('Supplier required!', 'error'); return; }
-    if (base <= 0) { showToast('Amount must be greater than 0!', 'error'); return; }
+    if (mainAmt <= 0 && svcAmt <= 0) { showToast('Enter Main Amount or Service Fee!', 'error'); return; }
 
     // Auto-create supplier if not exists
     const existingSup = DB.getSuppliers().find(s => s.name.toLowerCase() === supplierName.toLowerCase());
@@ -378,9 +464,7 @@ async function savePurchase() {
         });
     }
 
-    const gstRate = parseFloat(document.getElementById('purGstRate').value) || 0;
-    const gstAmt = base * gstRate / 100;
-    const total = base + gstAmt;
+    const calc = calcPurchaseTotal();
     const paidAmt = parseFloat(document.getElementById('purPaidAmount').value) || 0;
 
     const data = {
@@ -392,10 +476,29 @@ async function savePurchase() {
         category: category,
         description: document.getElementById('purDescription').value.trim(),
         linked_invoice_id: document.getElementById('purLinkedInvoice').value || '',
-        base_amount: base,
-        gst_rate: gstRate,
-        gst_amount: gstAmt,
-        total_amount: total,
+        
+        // ⭐ Main Amount fields
+        main_amount: mainAmt,
+        main_gst_inclusive: document.getElementById('purMainGstInclusive').value,
+        main_gst_rate: parseFloat(document.getElementById('purMainGstRate').value) || 0,
+        main_base: calc.mainBase,
+        main_gst_amount: calc.mainGst,
+        main_total: calc.mainTotal,
+        
+        // ⭐ Service Fee fields
+        service_fee: svcAmt,
+        service_gst_inclusive: document.getElementById('purServiceGstInclusive').value,
+        service_gst_rate: parseFloat(document.getElementById('purServiceGstRate').value) || 0,
+        service_base: calc.serviceBase,
+        service_gst_amount: calc.serviceGst,
+        service_total: calc.serviceTotal,
+        
+        // Totals (backward compatible)
+        base_amount: calc.mainBase + calc.serviceBase,
+        gst_rate: parseFloat(document.getElementById('purMainGstRate').value) || 0,
+        gst_amount: calc.totalGst,
+        total_amount: calc.grandTotal,
+        
         paid_amount: paidAmt,
         payment_status: document.getElementById('purPayStatus').value,
         payment_date: document.getElementById('purPayDate').value,
@@ -414,7 +517,6 @@ async function savePurchase() {
         showToast('✅ Purchase saved!', 'success');
     }
 
-    // Firebase sync
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId && saved) {
         try {
             await FirebaseSync.savePurchase(saved);
@@ -489,9 +591,38 @@ function viewPurchase(id) {
             ` : ''}
 
             <div class="calc-box">
-                <div class="calc-row"><span class="calc-label">Base Amount:</span><span class="calc-value">${formatCurrency(p.base_amount)}</span></div>
-                <div class="calc-row"><span class="calc-label">GST (${p.gst_rate}%):</span><span class="calc-value">${formatCurrency(p.gst_amount)}</span></div>
-                <div class="calc-row total"><span class="calc-label">Total Amount:</span><span class="calc-value">${formatCurrency(p.total_amount)}</span></div>
+                ${(p.main_amount || 0) > 0 ? `
+                    <div class="calc-row" style="font-weight:700;background:#f0f7ff;padding:6px;border-radius:4px;color:#1a73e8">
+                        <span class="calc-label">💰 Main Amount:</span>
+                        <span class="calc-value">${formatCurrency(p.main_amount || 0)}</span>
+                    </div>
+                    <div class="calc-row" style="font-size:11px;color:var(--text-muted);padding-left:10px">
+                        <span class="calc-label">└ Base:</span>
+                        <span class="calc-value">${formatCurrency(p.main_base || 0)}</span>
+                    </div>
+                    <div class="calc-row" style="font-size:11px;color:var(--text-muted);padding-left:10px">
+                        <span class="calc-label">└ GST (${p.main_gst_rate || 0}%) ${p.main_gst_inclusive === 'yes' ? '[Inclusive]' : '[Extra]'}:</span>
+                        <span class="calc-value">${formatCurrency(p.main_gst_amount || 0)}</span>
+                    </div>
+                ` : ''}
+                
+                ${(p.service_fee || 0) > 0 ? `
+                    <div class="calc-row" style="font-weight:700;background:#fff8e6;padding:6px;border-radius:4px;color:#e65100;margin-top:6px">
+                        <span class="calc-label">💼 Service Fee:</span>
+                        <span class="calc-value">${formatCurrency(p.service_fee || 0)}</span>
+                    </div>
+                    <div class="calc-row" style="font-size:11px;color:var(--text-muted);padding-left:10px">
+                        <span class="calc-label">└ Base:</span>
+                        <span class="calc-value">${formatCurrency(p.service_base || 0)}</span>
+                    </div>
+                    <div class="calc-row" style="font-size:11px;color:var(--text-muted);padding-left:10px">
+                        <span class="calc-label">└ GST (${p.service_gst_rate || 0}%) ${p.service_gst_inclusive === 'yes' ? '[Inclusive]' : '[Extra]'}:</span>
+                        <span class="calc-value">${formatCurrency(p.service_gst_amount || 0)}</span>
+                    </div>
+                ` : ''}
+                
+                <div class="calc-row" style="margin-top:6px"><span class="calc-label"><strong>Total GST:</strong></span><span class="calc-value" style="color:var(--info)">${formatCurrency(p.gst_amount || 0)}</span></div>
+                <div class="calc-row total"><span class="calc-label">Grand Total:</span><span class="calc-value">${formatCurrency(p.total_amount || 0)}</span></div>
                 <div class="calc-row" style="color:var(--success)"><span class="calc-label">Paid:</span><span class="calc-value">${formatCurrency(p.paid_amount || 0)}</span></div>
                 <div class="calc-row" style="color:${balance>0?'var(--danger)':'var(--success)'};font-weight:700"><span class="calc-label">Balance:</span><span class="calc-value">${formatCurrency(balance)}</span></div>
             </div>
@@ -546,9 +677,6 @@ function downloadPurchaseAttachment(id) {
     showToast('Downloaded!', 'success');
 }
 
-// ============================================
-// EXCEL EXPORT
-// ============================================
 function exportPurchasesExcel() {
     const purchases = DB.searchPurchases(purchaseSearchQuery, purchaseFilters);
     if (purchases.length === 0) { showToast('No purchases!', 'warning'); return; }
@@ -562,11 +690,18 @@ function exportPurchasesExcel() {
         'Supplier GST': p.supplier_gst || '',
         'Category': p.category,
         'Description': p.description || '',
-        'Base Amount': p.base_amount || 0,
-        'GST Rate': p.gst_rate + '%',
-        'GST Amount': p.gst_amount || 0,
-        'Total Amount': p.total_amount || 0,
-        'Paid Amount': p.paid_amount || 0,
+        'Main Amount': p.main_amount || 0,
+        'Main GST Rate': (p.main_gst_rate || 0) + '%',
+        'Main GST Inclusive': p.main_gst_inclusive || 'no',
+        'Main GST Amount': p.main_gst_amount || 0,
+        'Service Fee': p.service_fee || 0,
+        'Service GST Rate': (p.service_gst_rate || 0) + '%',
+        'Service GST Inclusive': p.service_gst_inclusive || 'no',
+        'Service GST Amount': p.service_gst_amount || 0,
+        'Base Total': p.base_amount || 0,
+        'Total GST': p.gst_amount || 0,
+        'Grand Total': p.total_amount || 0,
+        'Paid': p.paid_amount || 0,
         'Balance': (p.total_amount || 0) - (p.paid_amount || 0),
         'Payment Status': p.payment_status,
         'Payment Mode': p.payment_mode || '',
@@ -578,118 +713,8 @@ function exportPurchasesExcel() {
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = Array(20).fill({ wch: 16 });
+    ws['!cols'] = Array(28).fill({ wch: 16 });
     XLSX.utils.book_append_sheet(wb, ws, 'Purchases');
     XLSX.writeFile(wb, `Tripzar_Purchases_${getTodayISO()}.xlsx`);
     showToast('📊 Excel exported!', 'success');
-}
-
-// ============================================
-// COMBINED BOOKS EXPORT (Sales + Purchase + P&L)
-// ============================================
-function exportCombinedBooks() {
-    const wb = XLSX.utils.book_new();
-
-    // 1. Sales Sheet
-    const invoices = DB.getActiveInvoices();
-    const salesData = invoices.map((inv, idx) => ({
-        'S.No': idx + 1,
-        'Invoice No': inv.invoice_number,
-        'Date': inv.invoice_date,
-        'FY': inv.financial_year,
-        'Customer': inv.customer_name,
-        'Customer GST': inv.customer_gst || '',
-        'Taxable': inv.taxable_amount || 0,
-        'CGST': inv.cgst_amount || 0,
-        'SGST': inv.sgst_amount || 0,
-        'IGST': inv.igst_amount || 0,
-        'Total Tax': inv.total_tax || 0,
-        'Grand Total': inv.grand_total || 0,
-        'Payment Status': inv.payment_status
-    }));
-    const salesWS = XLSX.utils.json_to_sheet(salesData);
-    salesWS['!cols'] = Array(13).fill({ wch: 15 });
-    XLSX.utils.book_append_sheet(wb, salesWS, 'Sales');
-
-    // 2. Purchase Sheet
-    const purchases = DB.getActivePurchases();
-    const purchaseData = purchases.map((p, idx) => ({
-        'S.No': idx + 1,
-        'Bill No': p.bill_no,
-        'Date': p.bill_date,
-        'FY': p.financial_year,
-        'Supplier': p.supplier_name,
-        'Supplier GST': p.supplier_gst || '',
-        'Category': p.category,
-        'Base Amount': p.base_amount || 0,
-        'GST Amount': p.gst_amount || 0,
-        'Total Amount': p.total_amount || 0,
-        'Paid': p.paid_amount || 0,
-        'Balance': (p.total_amount || 0) - (p.paid_amount || 0),
-        'Status': p.payment_status
-    }));
-    const purWS = XLSX.utils.json_to_sheet(purchaseData);
-    purWS['!cols'] = Array(13).fill({ wch: 15 });
-    XLSX.utils.book_append_sheet(wb, purWS, 'Purchases');
-
-    // 3. P&L Summary
-    const totalSales = invoices.reduce((s, i) => s + (i.grand_total || 0), 0);
-    const totalTaxable = invoices.reduce((s, i) => s + (i.taxable_amount || 0), 0);
-    const totalOutputGST = invoices.reduce((s, i) => s + (i.total_tax || 0), 0);
-    const totalPurchase = purchases.reduce((s, p) => s + (p.total_amount || 0), 0);
-    const totalPurchaseBase = purchases.reduce((s, p) => s + (p.base_amount || 0), 0);
-    const totalInputGST = purchases.reduce((s, p) => s + (p.gst_amount || 0), 0);
-    const totalPaid = purchases.reduce((s, p) => s + (p.paid_amount || 0), 0);
-    const totalPending = totalPurchase - totalPaid;
-    const grossProfit = totalSales - totalPurchase;
-    const netGSTPayable = totalOutputGST - totalInputGST;
-
-    const plData = [
-        { 'Item': '═══ REVENUE ═══', 'Amount': '' },
-        { 'Item': 'Total Sales (Grand Total)', 'Amount': totalSales },
-        { 'Item': 'Taxable Sales', 'Amount': totalTaxable },
-        { 'Item': 'Output GST Collected', 'Amount': totalOutputGST },
-        { 'Item': '', 'Amount': '' },
-        { 'Item': '═══ EXPENSES ═══', 'Amount': '' },
-        { 'Item': 'Total Purchases', 'Amount': totalPurchase },
-        { 'Item': 'Purchase Base Amount', 'Amount': totalPurchaseBase },
-        { 'Item': 'Input GST Paid', 'Amount': totalInputGST },
-        { 'Item': 'Purchase Paid', 'Amount': totalPaid },
-        { 'Item': 'Purchase Pending', 'Amount': totalPending },
-        { 'Item': '', 'Amount': '' },
-        { 'Item': '═══ PROFIT & LOSS ═══', 'Amount': '' },
-        { 'Item': 'Gross Profit (Sales - Purchase)', 'Amount': grossProfit },
-        { 'Item': 'Profit Margin %', 'Amount': totalSales > 0 ? ((grossProfit/totalSales)*100).toFixed(2) + '%' : '0%' },
-        { 'Item': '', 'Amount': '' },
-        { 'Item': '═══ GST SUMMARY ═══', 'Amount': '' },
-        { 'Item': 'Output GST (from sales)', 'Amount': totalOutputGST },
-        { 'Item': 'Input GST (from purchases)', 'Amount': totalInputGST },
-        { 'Item': 'Net GST Payable', 'Amount': netGSTPayable }
-    ];
-    const plWS = XLSX.utils.json_to_sheet(plData);
-    plWS['!cols'] = [{ wch: 40 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, plWS, 'P&L Summary');
-
-    // 4. Supplier Ledger
-    const suppliers = DB.getSuppliers();
-    const supplierLedger = suppliers.map(s => {
-        const stats = DB.getSupplierStats(s.name);
-        return {
-            'Supplier': s.name,
-            'GST': s.gst_no || '',
-            'Phone': s.phone || '',
-            'Total Bills': stats.totalBills,
-            'Total Amount': stats.totalAmount,
-            'Paid': stats.totalPaid,
-            'Pending': stats.pending
-        };
-    });
-    if (supplierLedger.length > 0) {
-        const supWS = XLSX.utils.json_to_sheet(supplierLedger);
-        supWS['!cols'] = Array(7).fill({ wch: 18 });
-        XLSX.utils.book_append_sheet(wb, supWS, 'Supplier Ledger');
-    }
-
-    XLSX.writeFile(wb, `Tripzar_Books_${getTodayISO()}.xlsx`);
-    showToast('📊 Complete books exported!', 'success');
 }

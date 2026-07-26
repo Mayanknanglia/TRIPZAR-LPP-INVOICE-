@@ -1,5 +1,5 @@
 /* =============================================
-   SUPPLIERS v1.0 - Supplier Management
+   SUPPLIERS v2 - With Pincode Field
    ============================================= */
 
 let supplierSearchQuery = '';
@@ -122,6 +122,10 @@ function showSupplierForm(id = null) {
                     <input type="text" id="supCity" value="${s.city || ''}">
                 </div>
                 <div class="form-group">
+                    <label>Pincode</label>
+                    <input type="text" id="supPincode" value="${s.pincode || ''}" placeholder="e.g. 302020" maxlength="10">
+                </div>
+                <div class="form-group">
                     <label>State</label>
                     <select id="supState">${stateOpts}</select>
                 </div>
@@ -169,6 +173,7 @@ async function saveSupplier() {
         email: document.getElementById('supEmail').value.trim(),
         address: document.getElementById('supAddress').value.trim(),
         city: document.getElementById('supCity').value.trim(),
+        pincode: document.getElementById('supPincode').value.trim(),
         state: document.getElementById('supState').value,
         country: document.getElementById('supCountry').value,
         bank_name: document.getElementById('supBankName').value.trim(),
@@ -186,7 +191,6 @@ async function saveSupplier() {
         showToast('✅ Supplier added!', 'success');
     }
 
-    // Firebase sync
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId && saved) {
         try {
             await FirebaseSync.saveSupplier(saved);
@@ -212,9 +216,6 @@ async function deleteSupplierAction(id) {
     renderSuppliers();
 }
 
-// ============================================
-// SUPPLIER LEDGER
-// ============================================
 function viewSupplierLedger(id) {
     const supplier = DB.getSupplierById(id);
     if (!supplier) return;

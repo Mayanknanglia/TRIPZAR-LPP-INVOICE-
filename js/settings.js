@@ -1,11 +1,22 @@
-/* =============================================
-   SETTINGS v10 - Auto Image Compression + Firebase Sync
-   Prevents Firebase 1MB limit error
+﻿/* =============================================
+   SETTINGS v11 - LLPIN + Auto Image Compression + Drive URL Default
    ============================================= */
+
+// ⭐ PERMANENT DRIVE URL (saved as default)
+const DEFAULT_DRIVE_URL = 'https://script.google.com/macros/s/AKfycbwp95mVhfwKf4C44zC5WC-ji9zvxN9_DMoBxG7IMctVumbSqFwP3uTlpCDA2AUQAkSA/exec';
 
 function renderSettings() {
     const s = DB.getSettings();
     const auth = DB.getAuth();
+
+    // ⭐ Auto-set default Drive URL if not set
+    if (!s.drive_script_url) {
+        s.drive_script_url = DEFAULT_DRIVE_URL;
+        DB.saveSettings(s);
+        if (typeof Drive !== 'undefined') {
+            Drive.setScriptUrl(DEFAULT_DRIVE_URL);
+        }
+    }
 
     const countryOpts = COUNTRIES.map(c => `<option value="${c}" ${c === (s.country || 'India') ? 'selected' : ''}>${c}</option>`).join('');
     const stateOpts = getStateOptions(s.state);
@@ -195,10 +206,25 @@ function renderSettings() {
                 </div>
             </div>
 
+            <!-- ⭐ UPDATED: GSTIN + PAN + LLPIN + UDYAM -->
             <div class="form-row">
-                <div class="form-group"><label>GSTIN</label><input type="text" id="setGstin" value="${s.gstin || ''}" style="text-transform:uppercase"></div>
-                <div class="form-group"><label>UDYAM</label><input type="text" id="setUdyam" value="${s.udyam || ''}"></div>
-                <div class="form-group"><label>PAN</label><input type="text" id="setPan" value="${s.pan || ''}" style="text-transform:uppercase"></div>
+                <div class="form-group">
+                    <label>GSTIN</label>
+                    <input type="text" id="setGstin" value="${s.gstin || ''}" style="text-transform:uppercase;font-family:monospace">
+                </div>
+                <div class="form-group">
+                    <label>PAN</label>
+                    <input type="text" id="setPan" value="${s.pan || ''}" style="text-transform:uppercase;font-family:monospace">
+                </div>
+                <div class="form-group">
+                    <label>LLPIN</label>
+                    <input type="text" id="setLlpin" value="${s.llpin || ''}" placeholder="e.g. ACY-2051" style="text-transform:uppercase;font-family:monospace">
+                    <small class="input-hint">LLP Identification Number</small>
+                </div>
+                <div class="form-group">
+                    <label>UDYAM</label>
+                    <input type="text" id="setUdyam" value="${s.udyam || ''}">
+                </div>
             </div>
             <div class="form-row">
                 <div class="form-group"><label>Phone</label><input type="tel" id="setPhone" value="${s.phone || ''}"></div>
@@ -264,22 +290,38 @@ function renderSettings() {
                 3. Sab data automatic sync — profile pic, logo, invoices sab! ⚡<br>
                 4. Ek device pe change → dusre pe instant update!
             </div>
+
+            <details style="margin-top:12px">
+                <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--primary);padding:6px 0">
+                    📋 First Time Setup Instructions
+                </summary>
+                <div style="margin-top:8px;font-size:11px;line-height:1.7;padding:10px;background:var(--bg);border-radius:6px">
+                    <ol style="padding-left:20px;margin:0">
+                        <li><strong>This Device:</strong> Click "Upload All Data to Cloud" ✅</li>
+                        <li><strong>Wait 30 seconds</strong> - all data uploads</li>
+                        <li><strong>Other Device:</strong> Open same URL</li>
+                        <li><strong>Auto-login</strong> Firebase pe ho jayega</li>
+                        <li><strong>Automatic sync</strong> starts! ⚡</li>
+                    </ol>
+                </div>
+            </details>
         </div>
 
         <!-- ==================== GOOGLE DRIVE INTEGRATION ==================== -->
         <div class="card card-body" style="margin-bottom:16px;border-left:4px solid #4285F4">
             <div class="section-heading" style="margin-top:0;color:#4285F4">
                 <span class="material-icons-round">cloud</span> Google Drive Integration
+                <span style="margin-left:auto;background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">✅ Pre-Configured</span>
             </div>
             
-            <div style="background:#e8f0fe;padding:12px;border-radius:8px;margin-bottom:14px;font-size:12px;color:#1a73e8">
-                <strong>📌 For PDF backups:</strong> Upload invoice PDFs to Google Drive folder automatically
+            <div style="background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:14px;font-size:12px;color:#2e7d32">
+                <strong>✅ Ready to use:</strong> Drive URL is already saved. Invoice PDFs will be auto-uploaded to Google Drive (year-wise folders).
             </div>
 
             <div class="form-group">
-                <label>Apps Script Web App URL</label>
-                <input type="text" id="setDriveUrl" value="${s.drive_script_url || ''}" placeholder="https://script.google.com/macros/s/xxxxx/exec">
-                <small class="input-hint">Paste the deployment URL from Google Apps Script</small>
+                <label>Apps Script Web App URL <small style="color:var(--success)">(Pre-configured)</small></label>
+                <input type="text" id="setDriveUrl" value="${s.drive_script_url || DEFAULT_DRIVE_URL}" placeholder="https://script.google.com/macros/s/xxxxx/exec" style="font-family:monospace;font-size:11px">
+                <small class="input-hint">This is already set. Change only if you have a different Apps Script.</small>
             </div>
 
             <div class="btn-group">
@@ -292,8 +334,12 @@ function renderSettings() {
                 <button class="btn" style="background:#4285F4;color:white" onclick="backupToDriveAction()">
                     <span class="material-icons-round">backup</span> Backup to Drive
                 </button>
+                <button class="btn btn-secondary" onclick="resetDriveUrl()" title="Reset to default URL">
+                    <span class="material-icons-round">refresh</span> Reset Default
+                </button>
             </div>
 
+            <!-- AUTO-SAVE TOGGLES -->
             <div style="margin-top:20px;padding:15px;background:#f0f7ff;border-radius:8px;border:1px solid #4285F4">
                 <div style="font-weight:700;font-size:13px;color:#1a73e8;margin-bottom:12px;display:flex;align-items:center;gap:6px">
                     <span class="material-icons-round" style="font-size:18px">auto_awesome</span>
@@ -395,15 +441,12 @@ function compressImage(file, maxSize = 400, quality = 0.85) {
                 // White background for transparent PNGs
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, width, height);
-                
-                // Draw image
                 ctx.drawImage(img, 0, 0, width, height);
                 
                 // Try quality levels until under 700KB
                 let compressed = canvas.toDataURL('image/jpeg', quality);
                 let sizeKB = Math.round(compressed.length / 1024);
                 
-                // If still too big, reduce quality
                 if (sizeKB > 700) {
                     compressed = canvas.toDataURL('image/jpeg', 0.7);
                     sizeKB = Math.round(compressed.length / 1024);
@@ -473,7 +516,6 @@ async function uploadProfilePhoto(event) {
     showToast('🔄 Compressing photo...', 'info');
     
     try {
-        // Compress to max 300x300, 85% quality (profile photo doesn't need to be large)
         const result = await compressImage(file, 300, 0.85);
         console.log(`📸 Photo compressed: ${result.sizeKB} KB (${result.width}x${result.height})`);
         
@@ -560,7 +602,6 @@ async function uploadLogo(event) {
     showToast('🔄 Compressing logo...', 'info');
     
     try {
-        // Compress to max 400x400, 85% quality (perfect for logo)
         const result = await compressImage(file, 400, 0.85);
         console.log(`📸 Logo compressed: ${result.sizeKB} KB (${result.width}x${result.height})`);
         
@@ -601,13 +642,13 @@ async function removeLogo() {
 }
 
 // ============================================
-// SAVE COMPANY SETTINGS
+// SAVE COMPANY SETTINGS (with LLPIN)
 // ============================================
 async function saveSettingsAction() {
     const currentSettings = DB.getSettings();
     const settings = {
         ...currentSettings,
-        drive_script_url: currentSettings.drive_script_url || '',
+        drive_script_url: currentSettings.drive_script_url || DEFAULT_DRIVE_URL,
         drive_auto_save: currentSettings.drive_auto_save || false,
         drive_auto_backup: currentSettings.drive_auto_backup || false,
         last_drive_backup: currentSettings.last_drive_backup || '',
@@ -622,8 +663,9 @@ async function saveSettingsAction() {
         state_code: document.getElementById('setStateCode').value,
         country: document.getElementById('setCountry').value,
         gstin: document.getElementById('setGstin').value.toUpperCase(),
-        udyam: document.getElementById('setUdyam').value,
         pan: document.getElementById('setPan').value.toUpperCase(),
+        llpin: document.getElementById('setLlpin').value.trim().toUpperCase(),
+        udyam: document.getElementById('setUdyam').value,
         phone: document.getElementById('setPhone').value,
         email: document.getElementById('setEmail').value,
         website: document.getElementById('setWebsite').value,
@@ -668,11 +710,14 @@ async function changePasswordAction() {
 }
 
 // ============================================
-// GOOGLE DRIVE FUNCTIONS
+// ⭐ GOOGLE DRIVE FUNCTIONS (with default URL)
 // ============================================
 function saveDriveUrl() {
-    const url = document.getElementById('setDriveUrl').value.trim();
-    if (!url) { showToast('Please enter URL!', 'error'); return; }
+    let url = document.getElementById('setDriveUrl').value.trim();
+    if (!url) { 
+        url = DEFAULT_DRIVE_URL;
+        document.getElementById('setDriveUrl').value = url;
+    }
     if (!url.includes('script.google.com')) {
         showToast('❌ Invalid URL!', 'error');
         return;
@@ -691,9 +736,22 @@ function saveDriveUrl() {
     showToast('✅ Drive URL saved!', 'success');
 }
 
+// ⭐ NEW: Reset to default Drive URL
+function resetDriveUrl() {
+    if (!confirmDialog('Reset Drive URL to default?')) return;
+    document.getElementById('setDriveUrl').value = DEFAULT_DRIVE_URL;
+    if (typeof Drive !== 'undefined') {
+        Drive.setScriptUrl(DEFAULT_DRIVE_URL);
+    }
+    showToast('✅ Reset to default URL!', 'success');
+}
+
 async function testDriveConnection() {
-    const url = document.getElementById('setDriveUrl').value.trim();
-    if (!url) { showToast('Save URL first!', 'error'); return; }
+    let url = document.getElementById('setDriveUrl').value.trim();
+    if (!url) { 
+        url = DEFAULT_DRIVE_URL;
+        document.getElementById('setDriveUrl').value = url;
+    }
     if (typeof Drive === 'undefined') { showToast('❌ Drive module not loaded', 'error'); return; }
     Drive.setScriptUrl(url);
     showToast('🔄 Testing...', 'info');
@@ -741,7 +799,7 @@ async function toggleAutoSave(enabled) {
     }
     
     if (enabled) {
-        showToast('✅ Auto-Save enabled!', 'success');
+        showToast('✅ Auto-Save enabled! PDFs will auto-upload on save.', 'success');
     } else {
         showToast('⭕ Auto-Save disabled', 'info');
     }
@@ -767,7 +825,7 @@ async function toggleAutoBackup(enabled) {
     }
     
     if (enabled) {
-        showToast('✅ Auto-Backup enabled!', 'success');
+        showToast('✅ Auto-Backup enabled! Data will backup every 30 min.', 'success');
     } else {
         showToast('⭕ Auto-Backup disabled', 'info');
     }
@@ -775,11 +833,11 @@ async function toggleAutoBackup(enabled) {
 }
 
 // ============================================
-// FIREBASE CLOUD SYNC FUNCTIONS
+// 🔥 FIREBASE CLOUD SYNC FUNCTIONS
 // ============================================
 async function uploadToCloud() {
     if (typeof FirebaseSync === 'undefined' || !FirebaseSync.initialized) {
-        showToast('❌ Firebase not initialized', 'error');
+        showToast('❌ Firebase not initialized. Check console.', 'error');
         return;
     }
     if (!FirebaseSync.userId) {
@@ -791,11 +849,11 @@ async function uploadToCloud() {
         }
     }
     
-    if (!confirmDialog('🚀 Upload all data to Firebase cloud?')) return;
+    if (!confirmDialog('🚀 Upload all local data to Firebase cloud?\n\nThis will upload:\n• All invoices\n• All customers\n• All purchases\n• All suppliers\n• Profile photo\n• Company logo\n• Settings\n• Password\n\nMake it available on all your devices!')) return;
     
     const result = await FirebaseSync.migrateLocalToCloud();
     if (result) {
-        showToast('🎉 All data synced to cloud!', 'success');
+        showToast('🎉 Everything synced! Open on any device to see all data.', 'success');
     }
 }
 
@@ -805,6 +863,7 @@ async function syncFromCloud() {
         return;
     }
     if (!FirebaseSync.userId) {
+        showToast('⏳ Waiting for auto-login...', 'info');
         await FirebaseSync.autoLogin();
         if (!FirebaseSync.userId) {
             showFirebaseLoginModal();
@@ -821,61 +880,79 @@ function checkFirebaseStatus() {
         'Initialized': FirebaseSync?.initialized ? '✅ Yes' : '❌ No',
         'Internet': FirebaseSync?.online ? '✅ Online' : '❌ Offline',
         'Firebase Login': FirebaseSync?.userId ? '✅ Auto Logged In' : '❌ Not logged in',
+        'User ID': FirebaseSync?.userId ? FirebaseSync.userId.substring(0, 20) + '...' : 'None',
         'Active Listeners': FirebaseSync?.listeners.length || 0,
         'Pending Queue': JSON.parse(localStorage.getItem('firebase_queue') || '[]').length
     };
     
     const msg = Object.entries(status).map(([k, v]) => `${k}: ${v}`).join('\n');
-    alert('🔥 Firebase Status:\n\n' + msg);
+    alert('🔥 Firebase Sync Status:\n\n' + msg);
     
     if (!FirebaseSync?.userId) {
         setTimeout(() => showFirebaseLoginModal(), 500);
     }
 }
 
+// ============================================
+// FIREBASE LOGIN MODAL
+// ============================================
 function showFirebaseLoginModal() {
     const modal = document.getElementById('modalContent');
     const container = document.getElementById('modalContainer');
 
     modal.innerHTML = `
         <div class="modal-header" style="background:linear-gradient(135deg,#FFA500,#FF6B00);color:white">
-            <h2 style="color:white">Firebase Manual Login</h2>
+            <h2 style="color:white">
+                <span class="material-icons-round" style="vertical-align:middle">cloud_sync</span>
+                Firebase Manual Login
+            </h2>
             <button class="modal-close" style="color:white" onclick="closeFirebaseLoginModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="fbLoginEmail" value="admin@tripzar.com">
+            <div style="background:#fff3e0;padding:12px;border-radius:8px;margin-bottom:15px;font-size:12px;color:#e65100">
+                <strong>⚠️ Auto-login failed?</strong> Try manual login. Default credentials pre-filled below.
             </div>
+
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="fbLoginPass" value="tripzar@123">
+                <label>Firebase Email</label>
+                <input type="email" id="fbLoginEmail" value="admin@tripzar.com" placeholder="admin@tripzar.com">
+            </div>
+
+            <div class="form-group">
+                <label>Firebase Password</label>
+                <input type="password" id="fbLoginPass" value="tripzar@123" placeholder="Enter password">
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeFirebaseLoginModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="doFirebaseLogin()" style="background:linear-gradient(135deg,#FFA500,#FF6B00)">Login</button>
+            <button class="btn btn-primary" onclick="doFirebaseLogin()" style="background:linear-gradient(135deg,#FFA500,#FF6B00)">
+                <span class="material-icons-round">login</span> Login to Firebase
+            </button>
         </div>
     `;
     container.classList.remove('hidden');
+    setTimeout(() => document.getElementById('fbLoginPass')?.focus(), 300);
 }
 
 async function doFirebaseLogin() {
     const email = document.getElementById('fbLoginEmail').value.trim();
     const pass = document.getElementById('fbLoginPass').value.trim();
 
-    if (!email || !pass) { showToast('Enter both!', 'error'); return; }
+    if (!email || !pass) { showToast('Enter both email and password!', 'error'); return; }
 
-    showToast('🔄 Logging in...', 'info');
+    showToast('🔄 Logging in to Firebase...', 'info');
     
     try {
         const result = await FirebaseSync.login(email, pass);
         if (result.success) {
-            showToast('✅ Login successful!', 'success');
+            showToast('✅ Firebase login successful! Cloud sync active!', 'success');
             closeFirebaseLoginModal();
-            setTimeout(async () => await FirebaseSync.fullSync(), 1000);
+            
+            setTimeout(async () => {
+                await FirebaseSync.fullSync();
+            }, 1000);
         } else {
-            showToast('❌ Failed: ' + result.error, 'error');
+            showToast('❌ Firebase login failed: ' + result.error, 'error');
         }
     } catch (error) {
         showToast('❌ Error: ' + error.message, 'error');

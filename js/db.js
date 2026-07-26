@@ -1,5 +1,5 @@
 ﻿/* =============================================
-   DATABASE v4 - With Sales + Purchase + Suppliers
+   DATABASE v5 - With LLPIN + Sales + Purchase + Suppliers
    ============================================= */
 
 const DB = {
@@ -18,11 +18,10 @@ const DB = {
         if (!localStorage.getItem(this.KEYS.SETTINGS)) {
             this.saveSettings(this.getDefaultSettings());
         } else {
-            // Migrate old settings - add new fields
             const s = JSON.parse(localStorage.getItem(this.KEYS.SETTINGS));
             const def = this.getDefaultSettings();
             let updated = false;
-            ['building', 'street', 'area', 'city', 'pincode', 'country', 'invoice_type'].forEach(k => {
+            ['building', 'street', 'area', 'city', 'pincode', 'country', 'invoice_type', 'llpin'].forEach(k => {
                 if (s[k] === undefined) { s[k] = def[k]; updated = true; }
             });
             if (updated) this.saveSettings(s);
@@ -79,6 +78,7 @@ const DB = {
             address_line1: '',
             address_line2: '',
             gstin: '08ABAFT1155E1ZH',
+            llpin: 'ACY-2051',
             udyam: 'UDYAM-RJ-17-0654057 (Micro/Services)',
             pan: 'ABAFT1155E',
             phone: '7597251446',
@@ -104,9 +104,7 @@ const DB = {
     getAuth() { return JSON.parse(localStorage.getItem(this.KEYS.AUTH)); },
     saveAuth(auth) { localStorage.setItem(this.KEYS.AUTH, JSON.stringify(auth)); },
 
-    // ==============================================
     // CUSTOMERS
-    // ==============================================
     getCustomers() { return JSON.parse(localStorage.getItem(this.KEYS.CUSTOMERS)) || []; },
     saveCustomers(customers) { localStorage.setItem(this.KEYS.CUSTOMERS, JSON.stringify(customers)); },
     addCustomer(customer) {
@@ -145,9 +143,7 @@ const DB = {
         );
     },
 
-    // ==============================================
-    // INVOICES (Sales)
-    // ==============================================
+    // INVOICES
     getInvoices() { return JSON.parse(localStorage.getItem(this.KEYS.INVOICES)) || []; },
     saveInvoices(invoices) { localStorage.setItem(this.KEYS.INVOICES, JSON.stringify(invoices)); },
     getActiveInvoices() { return this.getInvoices().filter(inv => inv.status !== 'deleted'); },
@@ -196,14 +192,11 @@ const DB = {
         return invoices;
     },
 
-    // ==============================================
-    // ⭐ PURCHASES (NEW)
-    // ==============================================
+    // PURCHASES
     getPurchases() { return JSON.parse(localStorage.getItem(this.KEYS.PURCHASES)) || []; },
     savePurchases(purchases) { localStorage.setItem(this.KEYS.PURCHASES, JSON.stringify(purchases)); },
     getActivePurchases() { return this.getPurchases().filter(p => p.status !== 'deleted'); },
     getPurchaseById(id) { return this.getPurchases().find(p => p.id === id); },
-
     addPurchase(data) {
         const purchases = this.getPurchases();
         const purchase = {
@@ -216,7 +209,6 @@ const DB = {
         this.savePurchases(purchases);
         return purchase;
     },
-
     updatePurchase(id, data) {
         const purchases = this.getPurchases();
         const idx = purchases.findIndex(p => p.id === id);
@@ -227,7 +219,6 @@ const DB = {
         }
         return null;
     },
-
     deletePurchase(id) {
         const purchases = this.getPurchases();
         const idx = purchases.findIndex(p => p.id === id);
@@ -239,7 +230,6 @@ const DB = {
         }
         return false;
     },
-
     searchPurchases(query, filters = {}) {
         let purchases = this.getActivePurchases();
         if (query) {
@@ -258,13 +248,10 @@ const DB = {
         return purchases.sort((a, b) => new Date(b.bill_date || b.created_at) - new Date(a.bill_date || a.created_at));
     },
 
-    // ==============================================
-    // ⭐ SUPPLIERS (NEW)
-    // ==============================================
+    // SUPPLIERS
     getSuppliers() { return JSON.parse(localStorage.getItem(this.KEYS.SUPPLIERS)) || []; },
     saveSuppliers(suppliers) { localStorage.setItem(this.KEYS.SUPPLIERS, JSON.stringify(suppliers)); },
     getSupplierById(id) { return this.getSuppliers().find(s => s.id === id); },
-
     addSupplier(data) {
         const suppliers = this.getSuppliers();
         const supplier = {
@@ -276,7 +263,6 @@ const DB = {
         this.saveSuppliers(suppliers);
         return supplier;
     },
-
     updateSupplier(id, data) {
         const suppliers = this.getSuppliers();
         const idx = suppliers.findIndex(s => s.id === id);
@@ -287,12 +273,10 @@ const DB = {
         }
         return null;
     },
-
     deleteSupplier(id) {
         const suppliers = this.getSuppliers().filter(s => s.id !== id);
         this.saveSuppliers(suppliers);
     },
-
     getSupplierStats(supplierName) {
         const purchases = this.getActivePurchases().filter(p => p.supplier_name === supplierName);
         const totalAmount = purchases.reduce((sum, p) => sum + (p.total_amount || 0), 0);
@@ -305,9 +289,7 @@ const DB = {
         };
     },
 
-    // ==============================================
     // FY COUNTERS
-    // ==============================================
     getFYCounters() { return JSON.parse(localStorage.getItem(this.KEYS.FY_COUNTER)) || {}; },
     incrementFYCounter(fy) {
         const counters = this.getFYCounters();
@@ -321,15 +303,9 @@ const DB = {
         return { invoiceNumber: `TZ/${fy}/${String(nextNum).padStart(3, '0')}`, financialYear: fy };
     },
 
-    // ==============================================
-    // THEME
-    // ==============================================
     getTheme() { return localStorage.getItem(this.KEYS.THEME) || 'light'; },
     saveTheme(theme) { localStorage.setItem(this.KEYS.THEME, theme); },
 
-    // ==============================================
-    // EXPORT / IMPORT ALL DATA
-    // ==============================================
     exportAllData() {
         return {
             settings: this.getSettings(),
@@ -340,7 +316,7 @@ const DB = {
             fy_counters: this.getFYCounters(),
             auth: { ...this.getAuth(), password: undefined },
             exported_at: new Date().toISOString(),
-            version: '4.0.0'
+            version: '5.0.0'
         };
     },
     importAllData(data) {

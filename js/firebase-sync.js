@@ -1,12 +1,11 @@
 /* =============================================
-   FIREBASE SYNC v5.0 - Safety Net for Large Data
-   Auto-handles images > 1MB to prevent errors
+   FIREBASE SYNC v4.0 - FULL DATA SYNC
+   Everything: Invoices + Customers + Purchases + Suppliers + Settings + Auth + Photos
    ============================================= */
 
 const FirebaseSync = {
     FIREBASE_EMAIL: 'admin@tripzar.com',
     FIREBASE_PASSWORD: 'tripzar@123',
-    MAX_DOC_SIZE: 900000, // ~900KB safety limit (Firebase = 1MB)
     
     initialized: false,
     online: navigator.onLine,
@@ -47,7 +46,7 @@ const FirebaseSync = {
             });
         }
 
-        console.log('✅ FirebaseSync v5.0 initialized');
+        console.log('✅ FirebaseSync v4.0 initialized');
         setTimeout(() => this.autoLogin(), 500);
         return true;
     },
@@ -115,22 +114,7 @@ const FirebaseSync = {
     },
 
     // ============================================
-    // ⭐ SIZE CHECK HELPER
-    // ============================================
-    getObjectSize(obj) {
-        try {
-            return JSON.stringify(obj).length;
-        } catch (e) {
-            return 0;
-        }
-    },
-
-    isTooLarge(obj) {
-        return this.getObjectSize(obj) > this.MAX_DOC_SIZE;
-    },
-
-    // ============================================
-    // FULL SYNC
+    // FULL SYNC (Cloud → Local) — Everything!
     // ============================================
     async fullSync() {
         if (!this.online || !this.userId) return;
@@ -160,7 +144,7 @@ const FirebaseSync = {
                 console.log(`✅ ${customers.length} customers synced`);
             }
 
-            // 3. PURCHASES
+            // 3. ⭐ PURCHASES (NEW)
             const purchasesSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'purchases')
             );
@@ -171,7 +155,7 @@ const FirebaseSync = {
                 console.log(`✅ ${purchases.length} purchases synced`);
             }
 
-            // 4. SUPPLIERS
+            // 4. ⭐ SUPPLIERS (NEW)
             const suppliersSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'suppliers')
             );
@@ -182,36 +166,25 @@ const FirebaseSync = {
                 console.log(`✅ ${suppliers.length} suppliers synced`);
             }
 
-            // 5. SETTINGS
+            // 5. SETTINGS (includes logo)
             const settingsSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'settings')
             );
             settingsSnap.forEach(doc => {
                 if (doc.id === 'company') {
-                    // Keep local logo if cloud doesn't have it
-                    const cloudSettings = doc.data();
-                    const localSettings = DB.getSettings();
-                    if (!cloudSettings.logo_data && localSettings.logo_data) {
-                        cloudSettings.logo_data = localSettings.logo_data;
-                    }
-                    DB.saveSettings(cloudSettings);
-                    console.log('✅ Settings synced');
+                    DB.saveSettings(doc.data());
+                    console.log('✅ Settings + Logo synced');
                 }
             });
 
-            // 6. AUTH
+            // 6. AUTH (Profile + Password + Photo)
             const authSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'auth')
             );
             authSnap.forEach(doc => {
                 if (doc.id === 'user') {
-                    const cloudAuth = doc.data();
-                    const localAuth = DB.getAuth();
-                    if (!cloudAuth.profile_photo && localAuth.profile_photo) {
-                        cloudAuth.profile_photo = localAuth.profile_photo;
-                    }
-                    DB.saveAuth(cloudAuth);
-                    console.log('✅ Profile synced');
+                    DB.saveAuth(doc.data());
+                    console.log('✅ Profile + Photo synced');
                 }
             });
 
@@ -229,7 +202,7 @@ const FirebaseSync = {
 
             if (invoices.length > 0 || customers.length > 0 || purchases.length > 0) {
                 if (typeof showToast === 'function') {
-                    showToast('☁️ Synced from cloud', 'success');
+                    showToast('☁️ Everything synced from cloud', 'success');
                 }
             }
 
@@ -243,7 +216,7 @@ const FirebaseSync = {
     },
 
     // ============================================
-    // REAL-TIME SYNC
+    // REAL-TIME SYNC — Everything!
     // ============================================
     startRealtimeSync() {
         if (!this.online || !this.userId) return;
@@ -257,6 +230,7 @@ const FirebaseSync = {
                     const invoices = [];
                     snapshot.forEach(doc => invoices.push(doc.data()));
                     DB.saveInvoices(invoices);
+                    console.log(`🔄 Real-time: ${invoices.length} invoices`);
                     this.refreshCurrentPage();
                 }
             );
@@ -269,6 +243,7 @@ const FirebaseSync = {
                     const customers = [];
                     snapshot.forEach(doc => customers.push(doc.data()));
                     DB.saveCustomers(customers);
+                    console.log(`🔄 Real-time: ${customers.length} customers`);
                     if (document.getElementById('page-customers')?.classList.contains('active')) {
                         if (typeof renderCustomers === 'function') renderCustomers();
                     }
@@ -276,13 +251,14 @@ const FirebaseSync = {
             );
             this.listeners.push(custUnsub);
 
-            // Purchases
+            // ⭐ Purchases (NEW)
             const purUnsub = window.fbOnSnapshot(
                 window.fbCollection(window.firebaseDB, 'purchases'),
                 (snapshot) => {
                     const purchases = [];
                     snapshot.forEach(doc => purchases.push(doc.data()));
                     DB.savePurchases(purchases);
+                    console.log(`🔄 Real-time: ${purchases.length} purchases`);
                     if (document.getElementById('page-purchases')?.classList.contains('active')) {
                         if (typeof renderPurchaseList === 'function') renderPurchaseList();
                     }
@@ -290,13 +266,14 @@ const FirebaseSync = {
             );
             this.listeners.push(purUnsub);
 
-            // Suppliers
+            // ⭐ Suppliers (NEW)
             const supUnsub = window.fbOnSnapshot(
                 window.fbCollection(window.firebaseDB, 'suppliers'),
                 (snapshot) => {
                     const suppliers = [];
                     snapshot.forEach(doc => suppliers.push(doc.data()));
                     DB.saveSuppliers(suppliers);
+                    console.log(`🔄 Real-time: ${suppliers.length} suppliers`);
                     if (document.getElementById('page-suppliers')?.classList.contains('active')) {
                         if (typeof renderSuppliers === 'function') renderSuppliers();
                     }
@@ -304,46 +281,37 @@ const FirebaseSync = {
             );
             this.listeners.push(supUnsub);
 
-            // Settings + Logo (with safety)
+            // Settings + Logo
             const setUnsub = window.fbOnSnapshot(
                 window.fbCollection(window.firebaseDB, 'settings'),
                 (snapshot) => {
                     snapshot.forEach(doc => {
                         if (doc.id === 'company') {
-                            const cloudSettings = doc.data();
-                            const localSettings = DB.getSettings();
-                            // Preserve local logo if cloud doesn't have it
-                            if (!cloudSettings.logo_data && localSettings.logo_data) {
-                                cloudSettings.logo_data = localSettings.logo_data;
-                            }
-                            DB.saveSettings(cloudSettings);
+                            DB.saveSettings(doc.data());
                             if (typeof syncAppLogo === 'function') syncAppLogo();
                         }
                     });
+                    console.log('🔄 Real-time: Settings + Logo');
                 }
             );
             this.listeners.push(setUnsub);
 
-            // Auth (with safety)
+            // Auth (Profile + Photo)
             const authUnsub = window.fbOnSnapshot(
                 window.fbCollection(window.firebaseDB, 'auth'),
                 (snapshot) => {
                     snapshot.forEach(doc => {
                         if (doc.id === 'user') {
-                            const cloudAuth = doc.data();
-                            const localAuth = DB.getAuth();
-                            if (!cloudAuth.profile_photo && localAuth.profile_photo) {
-                                cloudAuth.profile_photo = localAuth.profile_photo;
-                            }
-                            DB.saveAuth(cloudAuth);
+                            DB.saveAuth(doc.data());
                             if (typeof updateNavbarUserName === 'function') updateNavbarUserName();
                         }
                     });
+                    console.log('🔄 Real-time: Profile + Photo');
                 }
             );
             this.listeners.push(authUnsub);
 
-            console.log('👂 Real-time sync ACTIVE');
+            console.log('👂 Real-time sync ACTIVE (All data)');
         } catch (error) {
             console.error('Realtime sync error:', error);
         }
@@ -368,14 +336,10 @@ const FirebaseSync = {
 
         if (this.online && this.userId) {
             try {
-                if (this.isTooLarge(invoice)) {
-                    console.warn('⚠️ Invoice too large, saving without attachments');
-                    const clean = { ...invoice };
-                    delete clean.bill_attachment;
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'invoices', invoice.id), clean);
-                } else {
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'invoices', invoice.id), invoice);
-                }
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'invoices', invoice.id),
+                    invoice
+                );
                 console.log('✅ Invoice synced:', invoice.invoice_number);
 
                 const fyCounters = DB.getFYCounters();
@@ -387,7 +351,6 @@ const FirebaseSync = {
                 }
                 return true;
             } catch (error) {
-                console.error('Invoice sync error:', error);
                 this.queueChange('invoice', invoice);
                 return false;
             }
@@ -409,6 +372,7 @@ const FirebaseSync = {
                     window.fbDoc(window.firebaseDB, 'customers', customer.id),
                     customer
                 );
+                console.log('✅ Customer synced');
                 return true;
             } catch (error) {
                 this.queueChange('customer', customer);
@@ -419,6 +383,7 @@ const FirebaseSync = {
         }
     },
 
+    // ⭐ NEW: Save Purchase
     async savePurchase(purchase) {
         const purchases = DB.getPurchases();
         const idx = purchases.findIndex(p => p.id === purchase.id);
@@ -428,19 +393,11 @@ const FirebaseSync = {
 
         if (this.online && this.userId) {
             try {
-                // Check size — if too big (due to bill_attachment), save without it
-                if (this.isTooLarge(purchase)) {
-                    console.warn('⚠️ Purchase too large, syncing without bill attachment');
-                    const clean = { ...purchase };
-                    delete clean.bill_attachment;
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'purchases', purchase.id), clean);
-                    if (typeof showToast === 'function') {
-                        showToast('⚠️ Bill attachment too large for cloud, saved locally only', 'warning');
-                    }
-                } else {
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'purchases', purchase.id), purchase);
-                }
-                console.log('✅ Purchase synced');
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'purchases', purchase.id),
+                    purchase
+                );
+                console.log('✅ Purchase synced:', purchase.bill_no);
                 return true;
             } catch (error) {
                 console.error('Purchase sync error:', error);
@@ -452,6 +409,7 @@ const FirebaseSync = {
         }
     },
 
+    // ⭐ NEW: Save Supplier
     async saveSupplier(supplier) {
         const suppliers = DB.getSuppliers();
         const idx = suppliers.findIndex(s => s.id === supplier.id);
@@ -465,8 +423,10 @@ const FirebaseSync = {
                     window.fbDoc(window.firebaseDB, 'suppliers', supplier.id),
                     supplier
                 );
+                console.log('✅ Supplier synced:', supplier.name);
                 return true;
             } catch (error) {
+                console.error('Supplier sync error:', error);
                 this.queueChange('supplier', supplier);
                 return false;
             }
@@ -475,29 +435,16 @@ const FirebaseSync = {
         }
     },
 
-    // ⭐ SAFE Settings save (auto-removes large logo)
     async saveSettings(settings) {
         DB.saveSettings(settings);
 
         if (this.online && this.userId) {
             try {
-                const settingsToSync = { ...settings };
-                
-                // Safety: If logo is too big, sync without it
-                if (settingsToSync.logo_data && this.isTooLarge(settingsToSync)) {
-                    const logoSize = Math.round(settingsToSync.logo_data.length / 1024);
-                    console.warn(`⚠️ Logo (${logoSize}KB) too big for Firebase — syncing without it`);
-                    delete settingsToSync.logo_data;
-                    if (typeof showToast === 'function') {
-                        showToast(`⚠️ Logo (${logoSize}KB) too large. Please re-upload smaller logo.`, 'warning');
-                    }
-                }
-                
                 await window.fbSetDoc(
                     window.fbDoc(window.firebaseDB, 'settings', 'company'),
-                    settingsToSync
+                    settings
                 );
-                console.log('✅ Settings synced');
+                console.log('✅ Settings + Logo synced');
                 return true;
             } catch (error) {
                 console.error('Settings sync error:', error);
@@ -506,29 +453,16 @@ const FirebaseSync = {
         }
     },
 
-    // ⭐ SAFE Auth save (auto-removes large photo)
     async saveAuth(auth) {
         DB.saveAuth(auth);
 
         if (this.online && this.userId) {
             try {
-                const authToSync = { ...auth };
-                
-                // Safety: If profile photo too big, sync without it
-                if (authToSync.profile_photo && this.isTooLarge(authToSync)) {
-                    const photoSize = Math.round(authToSync.profile_photo.length / 1024);
-                    console.warn(`⚠️ Profile photo (${photoSize}KB) too big — syncing without it`);
-                    delete authToSync.profile_photo;
-                    if (typeof showToast === 'function') {
-                        showToast(`⚠️ Photo (${photoSize}KB) too large. Please re-upload smaller.`, 'warning');
-                    }
-                }
-                
                 await window.fbSetDoc(
                     window.fbDoc(window.firebaseDB, 'auth', 'user'),
-                    authToSync
+                    auth
                 );
-                console.log('✅ Profile synced');
+                console.log('✅ Profile + Photo synced');
                 return true;
             } catch (error) {
                 console.error('Auth sync error:', error);
@@ -546,9 +480,10 @@ const FirebaseSync = {
         if (this.online && this.userId) {
             try {
                 if (inv) {
-                    const clean = { ...inv };
-                    if (clean.bill_attachment) delete clean.bill_attachment;
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'invoices', id), clean);
+                    await window.fbSetDoc(
+                        window.fbDoc(window.firebaseDB, 'invoices', id),
+                        inv
+                    );
                 }
                 return true;
             } catch (error) { return false; }
@@ -561,12 +496,15 @@ const FirebaseSync = {
 
         if (this.online && this.userId) {
             try {
-                await window.fbDeleteDoc(window.fbDoc(window.firebaseDB, 'customers', id));
+                await window.fbDeleteDoc(
+                    window.fbDoc(window.firebaseDB, 'customers', id)
+                );
                 return true;
             } catch (error) { return false; }
         }
     },
 
+    // ⭐ NEW: Delete Purchase
     async deletePurchase(id) {
         const purchases = DB.getPurchases();
         const p = purchases.find(x => x.id === id);
@@ -576,22 +514,26 @@ const FirebaseSync = {
         if (this.online && this.userId) {
             try {
                 if (p) {
-                    const clean = { ...p };
-                    if (clean.bill_attachment) delete clean.bill_attachment;
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'purchases', id), clean);
+                    await window.fbSetDoc(
+                        window.fbDoc(window.firebaseDB, 'purchases', id),
+                        p
+                    );
                 }
                 return true;
             } catch (error) { return false; }
         }
     },
 
+    // ⭐ NEW: Delete Supplier
     async deleteSupplier(id) {
         const suppliers = DB.getSuppliers().filter(s => s.id !== id);
         DB.saveSuppliers(suppliers);
 
         if (this.online && this.userId) {
             try {
-                await window.fbDeleteDoc(window.fbDoc(window.firebaseDB, 'suppliers', id));
+                await window.fbDeleteDoc(
+                    window.fbDoc(window.firebaseDB, 'suppliers', id)
+                );
                 return true;
             } catch (error) { return false; }
         }
@@ -626,7 +568,7 @@ const FirebaseSync = {
     },
 
     // ============================================
-    // MIGRATE LOCAL → CLOUD
+    // MIGRATE LOCAL → CLOUD (First time upload)
     // ============================================
     async migrateLocalToCloud() {
         if (!this.online || !this.userId) {
@@ -637,103 +579,77 @@ const FirebaseSync = {
         }
 
         if (typeof showToast === 'function') {
-            showToast('🚀 Uploading to cloud...', 'info');
+            showToast('🚀 Uploading everything to cloud...', 'info');
         }
-
-        let skippedCount = 0;
-        let successCount = 0;
 
         try {
             // 1. Invoices
             const invoices = DB.getInvoices();
             for (const inv of invoices) {
-                try {
-                    if (this.isTooLarge(inv)) {
-                        const clean = { ...inv };
-                        if (clean.bill_attachment) delete clean.bill_attachment;
-                        await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'invoices', inv.id), clean);
-                        skippedCount++;
-                    } else {
-                        await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'invoices', inv.id), inv);
-                    }
-                    successCount++;
-                } catch (e) { console.error('Invoice upload error:', e); }
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'invoices', inv.id),
+                    inv
+                );
             }
             console.log(`✅ ${invoices.length} invoices uploaded`);
 
             // 2. Customers
             const customers = DB.getCustomers();
             for (const cust of customers) {
-                try {
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'customers', cust.id), cust);
-                } catch (e) { console.error('Customer upload error:', e); }
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'customers', cust.id),
+                    cust
+                );
             }
             console.log(`✅ ${customers.length} customers uploaded`);
 
-            // 3. Purchases
+            // 3. ⭐ Purchases (NEW)
             const purchases = DB.getPurchases();
             for (const pur of purchases) {
-                try {
-                    if (this.isTooLarge(pur)) {
-                        const clean = { ...pur };
-                        if (clean.bill_attachment) delete clean.bill_attachment;
-                        await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'purchases', pur.id), clean);
-                        skippedCount++;
-                    } else {
-                        await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'purchases', pur.id), pur);
-                    }
-                } catch (e) { console.error('Purchase upload error:', e); }
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'purchases', pur.id),
+                    pur
+                );
             }
             console.log(`✅ ${purchases.length} purchases uploaded`);
 
-            // 4. Suppliers
+            // 4. ⭐ Suppliers (NEW)
             const suppliers = DB.getSuppliers();
             for (const sup of suppliers) {
-                try {
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'suppliers', sup.id), sup);
-                } catch (e) { console.error('Supplier upload error:', e); }
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'suppliers', sup.id),
+                    sup
+                );
             }
             console.log(`✅ ${suppliers.length} suppliers uploaded`);
 
-            // 5. Settings (with safety)
+            // 5. Settings + Logo
             const settings = DB.getSettings();
-            try {
-                const settingsToSync = { ...settings };
-                if (this.isTooLarge(settingsToSync)) {
-                    const logoSize = settingsToSync.logo_data ? Math.round(settingsToSync.logo_data.length / 1024) : 0;
-                    console.warn(`⚠️ Settings with logo (${logoSize}KB) too big — syncing without logo`);
-                    delete settingsToSync.logo_data;
-                }
-                await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'settings', 'company'), settingsToSync);
-                console.log('✅ Settings uploaded');
-            } catch (e) { console.error('Settings upload error:', e); }
+            await window.fbSetDoc(
+                window.fbDoc(window.firebaseDB, 'settings', 'company'),
+                settings
+            );
+            console.log('✅ Settings + Logo uploaded');
 
-            // 6. Auth (with safety)
+            // 6. Auth (Profile + Photo + Password)
             const auth = DB.getAuth();
-            try {
-                const authToSync = { ...auth };
-                if (this.isTooLarge(authToSync)) {
-                    console.warn('⚠️ Profile photo too big — syncing without it');
-                    delete authToSync.profile_photo;
-                }
-                await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'auth', 'user'), authToSync);
-                console.log('✅ Profile uploaded');
-            } catch (e) { console.error('Auth upload error:', e); }
+            await window.fbSetDoc(
+                window.fbDoc(window.firebaseDB, 'auth', 'user'),
+                auth
+            );
+            console.log('✅ Profile + Photo uploaded');
 
             // 7. FY Counters
             const counters = DB.getFYCounters();
             for (const [fy, count] of Object.entries(counters)) {
-                try {
-                    await window.fbSetDoc(window.fbDoc(window.firebaseDB, 'fy_counters', fy), { count: count });
-                } catch (e) { console.error('FY counter error:', e); }
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'fy_counters', fy),
+                    { count: count }
+                );
             }
 
             if (typeof showToast === 'function') {
-                let msg = `🎉 Uploaded! ${invoices.length} invoices, ${customers.length} customers, ${purchases.length} purchases, ${suppliers.length} suppliers`;
-                if (skippedCount > 0) {
-                    msg += ` (${skippedCount} large attachments skipped)`;
-                }
-                showToast(msg, 'success');
+                showToast(`🎉 All uploaded! ${invoices.length} invoices, ${customers.length} customers, ${purchases.length} purchases, ${suppliers.length} suppliers`, 'success');
             }
             return true;
 
