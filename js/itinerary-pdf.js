@@ -1,5 +1,5 @@
 /* =============================================
-   ITINERARY PDF GENERATOR v1.0
+   ITINERARY PDF GENERATOR v1.1 (Emoji-Free)
    Professional Branded PDF for Tour Quotations
    ============================================= */
 
@@ -10,7 +10,7 @@ const ItineraryPDF = {
         if (!itin) { showToast('Itinerary not found!', 'error'); return; }
 
         const settings = DB.getSettings();
-        showToast('📄 Generating PDF...', 'info');
+        showToast('Generating PDF...', 'info');
 
         try {
             const { jsPDF } = window.jspdf;
@@ -23,10 +23,9 @@ const ItineraryPDF = {
             const pageW  = 210;
             const pageH  = 297;
             const margin = 13;
-            const cW     = pageW - margin * 2; // content width
+            const cW     = pageW - margin * 2;
             let y        = 0;
 
-            // ── Color palette ──
             const C = {
                 primary   : [26,  86,  50],
                 accent    : [245, 158, 11],
@@ -37,22 +36,18 @@ const ItineraryPDF = {
                 bgLight   : [245, 250, 247],
                 green     : [34,  197, 94],
                 red       : [220, 38,  38],
-                purple    : [124, 58,  237],
             };
 
-            // ════════════════════════════════════════
-            // PAGE 1
-            // ════════════════════════════════════════
+            // ════════════════════════════════
+            // PAGE 1 — HEADER
+            // ════════════════════════════════
 
-            // ── Header background ──
             doc.setFillColor(...C.primary);
             doc.rect(0, 0, pageW, 54, 'F');
-
-            // ── Diagonal accent strip ──
             doc.setFillColor(...C.accent);
             doc.rect(0, 51, pageW, 3, 'F');
 
-            // ── Logo ──
+            // LOGO
             let logoX = margin;
             const logoData = settings.logo_data;
             if (logoData) {
@@ -62,7 +57,7 @@ const ItineraryPDF = {
                 } catch(e) { logoX = margin; }
             }
 
-            // ── Company info ──
+            // COMPANY INFO
             doc.setTextColor(...C.white);
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(15);
@@ -84,14 +79,14 @@ const ItineraryPDF = {
                 logoX, 30
             );
             doc.text(
-                `📞 ${settings.phone||''}   ✉ ${settings.email||''}   🌐 ${settings.website||''}`,
+                `Ph: ${settings.phone||''}   Email: ${settings.email||''}   Web: ${settings.website||''}`,
                 logoX, 36
             );
             if (settings.udyam) {
                 doc.text(`UDYAM: ${settings.udyam}`, logoX, 42);
             }
 
-            // ── Document type badge (top-right) ──
+            // DOC TYPE BADGE
             doc.setFillColor(...C.accent);
             doc.roundedRect(pageW - margin - 48, 9, 48, 20, 3, 3, 'F');
             doc.setTextColor(...C.dark);
@@ -102,7 +97,9 @@ const ItineraryPDF = {
 
             y = 60;
 
-            // ── Quotation info strip ──
+            // ════════════════════════════════
+            // QUOTATION INFO STRIP
+            // ════════════════════════════════
             doc.setFillColor(...C.bgLight);
             doc.roundedRect(margin, y, cW, 20, 3, 3, 'F');
             doc.setDrawColor(...C.primary);
@@ -129,37 +126,33 @@ const ItineraryPDF = {
                 if (i < 3) {
                     doc.setDrawColor(...C.lightGray);
                     doc.setLineWidth(0.3);
-                    doc.line(
-                        margin + (i+1)*iColW, y+4,
-                        margin + (i+1)*iColW, y+16
-                    );
+                    doc.line(margin + (i+1)*iColW, y+4, margin + (i+1)*iColW, y+16);
                 }
             });
 
             y += 26;
 
-            // ── Two-column: Customer | Tour ──
+            // ════════════════════════════════
+            // TWO COLUMN: CUSTOMER | TOUR
+            // ════════════════════════════════
             const colW = (cW - 5) / 2;
             const col2 = margin + colW + 5;
 
-            // Customer header
+            // Headers
             doc.setFillColor(...C.primary);
             doc.roundedRect(margin, y, colW, 7, 2, 2, 'F');
             doc.setTextColor(...C.white);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5);
-            doc.text('  👤  CUSTOMER DETAILS', margin + 3, y + 5);
+            doc.setFontSize(8);
+            doc.text('CUSTOMER DETAILS', margin + 4, y + 5);
 
-            // Tour header
             doc.setFillColor(...C.accent);
             doc.roundedRect(col2, y, colW, 7, 2, 2, 'F');
             doc.setTextColor(...C.dark);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5);
-            doc.text('  ✈   TOUR DETAILS', col2 + 3, y + 5);
+            doc.text('TOUR DETAILS', col2 + 4, y + 5);
 
             y += 9;
-            const boxH = 38;
+            const boxH = 40;
 
             // Customer box
             doc.setFillColor(250, 253, 251);
@@ -168,24 +161,24 @@ const ItineraryPDF = {
             doc.roundedRect(margin, y, colW, boxH, 2, 2, 'S');
 
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(10);
+            doc.setFontSize(11);
             doc.setTextColor(...C.dark);
             doc.text(itin.customer_name || 'Walk-in Customer', margin + 4, y + 9);
 
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
+            doc.setFontSize(8.5);
             doc.setTextColor(...C.gray);
-            let cy2 = y + 17;
+            let cy2 = y + 18;
             if (itin.customer_phone) {
-                doc.text(`📞  ${itin.customer_phone}`, margin+4, cy2);
-                cy2 += 7;
+                doc.text(`Phone: ${itin.customer_phone}`, margin+4, cy2);
+                cy2 += 6.5;
             }
             if (itin.customer_email) {
-                doc.text(`✉   ${itin.customer_email}`, margin+4, cy2);
-                cy2 += 7;
+                doc.text(`Email: ${itin.customer_email}`, margin+4, cy2);
+                cy2 += 6.5;
             }
             if (itin.customer_city) {
-                doc.text(`📍  ${itin.customer_city}`, margin+4, cy2);
+                doc.text(`City : ${itin.customer_city}`, margin+4, cy2);
             }
 
             // Tour box
@@ -197,16 +190,14 @@ const ItineraryPDF = {
             const nights = itin.nights || 0;
             const tDays  = nights ? parseInt(nights)+1 : 0;
             const tourRows = [
-                ['🌍 Destination', itin.destination || 'N/A'],
-                ['🏷️ Tour Type',   itin.tour_type   || 'N/A'],
-                ['📅 Travel Date', itin.travel_date  
-                    ? this.fmtDate(itin.travel_date) : 'TBD'],
-                ['🔄 Return Date', itin.return_date  
-                    ? this.fmtDate(itin.return_date) : 'TBD'],
-                ['🌙 Duration',    `${nights}N / ${tDays}D`],
-                ['🏨 Hotel',       itin.hotel || 'As per itinerary'],
+                ['Destination', itin.destination || 'N/A'],
+                ['Tour Type',   itin.tour_type   || 'N/A'],
+                ['Travel Date', itin.travel_date ? this.fmtDate(itin.travel_date) : 'TBD'],
+                ['Return Date', itin.return_date ? this.fmtDate(itin.return_date) : 'TBD'],
+                ['Duration',    `${nights}N / ${tDays}D`],
+                ['Hotel',       itin.hotel || 'As per itinerary'],
             ];
-            let ty2 = y + 8;
+            let ty2 = y + 7;
             tourRows.forEach(([lbl, val]) => {
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(7.5);
@@ -215,28 +206,29 @@ const ItineraryPDF = {
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(8);
                 doc.setTextColor(...C.dark);
-                // truncate if too long
-                const maxVal = doc.splitTextToSize(val, colW - 40);
-                doc.text(maxVal[0], col2+colW-4, ty2, { align:'right' });
-                ty2 += 6;
+                const truncVal = doc.splitTextToSize(String(val), colW - 40);
+                doc.text(truncVal[0], col2+colW-4, ty2, { align:'right' });
+                ty2 += 5.5;
             });
 
             y += boxH + 4;
 
-            // ── Pax strip ──
+            // ════════════════════════════════
+            // PAX STRIP
+            // ════════════════════════════════
             doc.setFillColor(...C.primary);
             doc.roundedRect(margin, y, cW, 11, 2, 2, 'F');
             const totalPax = (itin.adults||1) + (itin.children||0) || 1;
             const paxStr = [
-                `👨‍👩 Adults: ${itin.adults||0}`,
-                `👦 Children: ${itin.children||0}`,
-                `👶 Infants: ${itin.infants||0}`,
-                `💰 Per Person: ₹${this.fmtAmt((itin.grand_total||0)/totalPax)}`,
-                `📦 Total Pax: ${totalPax}`,
+                `Adults: ${itin.adults||0}`,
+                `Children: ${itin.children||0}`,
+                `Infants: ${itin.infants||0}`,
+                `Total Pax: ${totalPax}`,
+                `Per Person: Rs. ${this.fmtAmt((itin.grand_total||0)/totalPax)}`
             ];
             doc.setTextColor(...C.white);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
             const pColW = cW / paxStr.length;
             paxStr.forEach((txt, i) => {
                 doc.text(txt, margin + i*pColW + pColW/2, y+7.5, { align:'center' });
@@ -244,21 +236,20 @@ const ItineraryPDF = {
 
             y += 17;
 
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             // DAY-WISE ITINERARY
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             if (itin.days && itin.days.length > 0) {
-                y = this.sectionHeader(doc, C, margin, y, cW, '📅  DAY-WISE ITINERARY');
+                y = this.sectionHeader(doc, C, margin, y, cW, 'DAY-WISE ITINERARY');
                 y += 4;
 
                 itin.days.forEach((day, idx) => {
-                    // page break check
                     if (y > pageH - 45) {
                         doc.addPage();
                         y = this.contHeader(doc, settings, C, pageW, margin);
                     }
 
-                    // Day badge row
+                    // Day badge
                     doc.setFillColor(...C.accent);
                     doc.roundedRect(margin, y, 20, 7, 2, 2, 'F');
                     doc.setTextColor(...C.dark);
@@ -273,7 +264,7 @@ const ItineraryPDF = {
                         doc.setDrawColor(...C.lightGray);
                         doc.roundedRect(margin+22, y, cW-22, 7, 2, 2, 'S');
                         doc.setFont('helvetica', 'bold');
-                        doc.setFontSize(8.5);
+                        doc.setFontSize(9);
                         doc.setTextColor(...C.dark);
                         doc.text(day.title, margin+26, y+5);
                     }
@@ -288,16 +279,15 @@ const ItineraryPDF = {
                                 y = this.contHeader(doc, settings, C, pageW, margin);
                             }
                             const clean = line.replace(/^[•\-\*]\s*/,'');
-                            const wrapped = doc.splitTextToSize(`• ${clean}`, cW-8);
+                            const wrapped = doc.splitTextToSize(`- ${clean}`, cW-8);
                             doc.setFont('helvetica', 'normal');
-                            doc.setFontSize(8);
+                            doc.setFontSize(8.5);
                             doc.setTextColor(...C.gray);
                             doc.text(wrapped, margin+6, y);
                             y += wrapped.length * 5;
                         });
                     }
 
-                    // Separator
                     if (idx < itin.days.length-1) {
                         y += 2;
                         doc.setDrawColor(...C.lightGray);
@@ -310,9 +300,9 @@ const ItineraryPDF = {
                 });
             }
 
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             // INCLUSIONS / EXCLUSIONS
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             if (itin.inclusions || itin.exclusions) {
                 if (y > pageH - 60) {
                     doc.addPage();
@@ -322,17 +312,16 @@ const ItineraryPDF = {
                 const hW = (cW - 5) / 2;
                 const hCol2 = margin + hW + 5;
 
-                // Headers
                 doc.setFillColor(...C.green);
                 doc.roundedRect(margin, y, hW, 7, 2, 2, 'F');
                 doc.setTextColor(...C.white);
                 doc.setFont('helvetica','bold');
-                doc.setFontSize(7.5);
-                doc.text('✅  INCLUSIONS', margin+4, y+5);
+                doc.setFontSize(8);
+                doc.text('INCLUSIONS', margin+4, y+5);
 
                 doc.setFillColor(...C.red);
                 doc.roundedRect(hCol2, y, hW, 7, 2, 2, 'F');
-                doc.text('❌  EXCLUSIONS', hCol2+4, y+5);
+                doc.text('EXCLUSIONS', hCol2+4, y+5);
 
                 y += 9;
 
@@ -340,7 +329,6 @@ const ItineraryPDF = {
                 const exclLines = (itin.exclusions||'').split('\n').filter(l=>l.trim());
                 const bH = Math.max(inclLines.length, exclLines.length) * 6 + 8;
 
-                // Boxes
                 doc.setFillColor(240, 253, 244);
                 doc.roundedRect(margin, y, hW, bH, 2, 2, 'F');
                 doc.setDrawColor(...C.green);
@@ -352,24 +340,22 @@ const ItineraryPDF = {
                 doc.setDrawColor(...C.red);
                 doc.roundedRect(hCol2, y, hW, bH, 2, 2, 'S');
 
-                // Inclusions text
                 doc.setFont('helvetica','normal');
-                doc.setFontSize(7.5);
+                doc.setFontSize(8);
                 doc.setTextColor(22,101,52);
                 let iy = y+7;
                 inclLines.forEach(line => {
                     const clean = line.replace(/^[✓✅•\-\*]\s*/,'');
-                    const wrapped = doc.splitTextToSize(`✓ ${clean}`, hW-6);
+                    const wrapped = doc.splitTextToSize(`[+] ${clean}`, hW-6);
                     doc.text(wrapped, margin+4, iy);
                     iy += wrapped.length * 5;
                 });
 
-                // Exclusions text
                 doc.setTextColor(...C.red);
                 let ey = y+7;
                 exclLines.forEach(line => {
                     const clean = line.replace(/^[✗❌•\-\*]\s*/,'');
-                    const wrapped = doc.splitTextToSize(`✗ ${clean}`, hW-6);
+                    const wrapped = doc.splitTextToSize(`[-] ${clean}`, hW-6);
                     doc.text(wrapped, hCol2+4, ey);
                     ey += wrapped.length * 5;
                 });
@@ -377,39 +363,34 @@ const ItineraryPDF = {
                 y += bH + 8;
             }
 
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             // PRICE BREAKDOWN
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             if (y > pageH - 80) {
                 doc.addPage();
                 y = this.contHeader(doc, settings, C, pageW, margin);
             }
 
-            y = this.sectionHeader(doc, C, margin, y, cW, '💰  PRICE BREAKDOWN');
+            y = this.sectionHeader(doc, C, margin, y, cW, 'PRICE BREAKDOWN');
             y += 6;
 
             if (itin.cost_items && itin.cost_items.length > 0) {
                 const tW  = Math.min(cW, 130);
                 const tX  = margin + (cW - tW) / 2;
-                const amtW = 38;
-                const lblW = tW - amtW - 4;
 
-                // Table header
                 doc.setFillColor(235, 245, 238);
                 doc.roundedRect(tX, y, tW, 7, 2, 2, 'F');
                 doc.setFont('helvetica','bold');
                 doc.setFontSize(8);
                 doc.setTextColor(...C.primary);
                 doc.text('Service / Component', tX+4, y+5);
-                doc.text('Amount (₹)', tX+tW-4, y+5, { align:'right' });
+                doc.text('Amount (Rs.)', tX+tW-4, y+5, { align:'right' });
                 y += 9;
 
-                // Rows
                 itin.cost_items.forEach((item, idx) => {
                     if (!item.label && !item.amount) return;
                     const rowH = 7;
-                    doc.setFillColor(idx%2===0 ? 250:255, idx%2===0 ? 252:255,
-                                     idx%2===0 ? 251:255);
+                    doc.setFillColor(idx%2===0 ? 250:255, idx%2===0 ? 252:255, idx%2===0 ? 251:255);
                     doc.rect(tX, y-2, tW, rowH, 'F');
                     doc.setDrawColor(...C.lightGray);
                     doc.line(tX, y+rowH-2, tX+tW, y+rowH-2);
@@ -419,50 +400,45 @@ const ItineraryPDF = {
                     doc.setTextColor(...C.dark);
                     doc.text(item.label||'', tX+4, y+3);
                     doc.setFont('helvetica','bold');
-                    doc.text(
-                        `₹ ${this.fmtAmt(item.amount||0)}`,
-                        tX+tW-4, y+3, { align:'right' }
-                    );
+                    doc.text(`Rs. ${this.fmtAmt(item.amount||0)}`, tX+tW-4, y+3, { align:'right' });
                     y += rowH;
                 });
 
                 y += 4;
-
-                // Subtotal line
                 doc.setDrawColor(...C.primary);
                 doc.setLineWidth(0.5);
                 doc.line(tX, y, tX+tW, y);
                 y += 5;
 
-                const totalRows = [];
-                totalRows.push(['Subtotal', itin.subtotal||0, C.gray, false]);
+                doc.setFont('helvetica','normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(...C.gray);
+                doc.text('Subtotal', tX+4, y);
+                doc.setFont('helvetica','bold');
+                doc.setTextColor(...C.dark);
+                doc.text(`Rs. ${this.fmtAmt(itin.subtotal||0)}`, tX+tW-4, y, { align:'right' });
+                y += 7;
+
                 if (itin.discount > 0) {
-                    totalRows.push([
-                        'Discount', -(itin.discount), C.red, false
-                    ]);
-                }
-                if (itin.gst_enabled) {
-                    totalRows.push([
-                        `GST @ ${itin.gst_rate}%`,
-                        itin.gst_amount||0, C.gray, false
-                    ]);
-                }
-
-                totalRows.forEach(([lbl, amt, clr, bold]) => {
-                    doc.setFont('helvetica', bold ? 'bold':'normal');
-                    doc.setFontSize(8.5);
-                    doc.setTextColor(...clr);
-                    doc.text(lbl, tX+4, y);
+                    doc.setFont('helvetica','normal');
+                    doc.setTextColor(...C.red);
+                    doc.text('Discount', tX+4, y);
                     doc.setFont('helvetica','bold');
-                    const sign = amt < 0 ? '-' : '';
-                    doc.text(
-                        `${sign}₹ ${this.fmtAmt(Math.abs(amt))}`,
-                        tX+tW-4, y, { align:'right' }
-                    );
+                    doc.text(`- Rs. ${this.fmtAmt(itin.discount)}`, tX+tW-4, y, { align:'right' });
                     y += 7;
-                });
+                }
 
-                // Grand Total box
+                if (itin.gst_enabled) {
+                    doc.setFont('helvetica','normal');
+                    doc.setTextColor(...C.gray);
+                    doc.text(`GST @ ${itin.gst_rate}%`, tX+4, y);
+                    doc.setFont('helvetica','bold');
+                    doc.setTextColor(...C.dark);
+                    doc.text(`Rs. ${this.fmtAmt(itin.gst_amount||0)}`, tX+tW-4, y, { align:'right' });
+                    y += 7;
+                }
+
+                // Grand Total
                 y += 2;
                 doc.setFillColor(...C.primary);
                 doc.roundedRect(tX, y, tW, 13, 2, 2, 'F');
@@ -471,27 +447,22 @@ const ItineraryPDF = {
                 doc.setFontSize(10);
                 doc.text('GRAND TOTAL', tX+6, y+9);
                 doc.setFontSize(11);
-                doc.text(
-                    `₹ ${this.fmtAmt(itin.grand_total||0)}`,
-                    tX+tW-6, y+9, { align:'right' }
-                );
+                doc.text(`Rs. ${this.fmtAmt(itin.grand_total||0)}`, tX+tW-6, y+9, { align:'right' });
                 y += 17;
 
-                // Per person note
                 doc.setFont('helvetica','italic');
                 doc.setFontSize(7.5);
                 doc.setTextColor(...C.gray);
                 doc.text(
-                    `* Per person cost: ₹${this.fmtAmt((itin.grand_total||0)/totalPax)} `+
-                    `(based on ${totalPax} pax)`,
+                    `* Per person cost: Rs. ${this.fmtAmt((itin.grand_total||0)/totalPax)} (based on ${totalPax} pax)`,
                     tX + tW/2, y, { align:'center' }
                 );
                 y += 8;
             }
 
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             // PAYMENT TERMS
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             if (itin.payment_terms) {
                 if (y > pageH - 30) {
                     doc.addPage();
@@ -506,25 +477,23 @@ const ItineraryPDF = {
                 doc.setFont('helvetica','bold');
                 doc.setFontSize(8);
                 doc.setTextColor(...C.dark);
-                doc.text('💳  Payment Terms:', margin+4, y+7);
+                doc.text('PAYMENT TERMS:', margin+4, y+7);
                 doc.setFont('helvetica','normal');
                 doc.setTextColor(...C.gray);
                 doc.text(itin.payment_terms, margin+4, y+13);
                 y += 20;
             }
 
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             // TERMS & CONDITIONS
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             if (itin.terms) {
                 if (y > pageH - 55) {
                     doc.addPage();
                     y = this.contHeader(doc, settings, C, pageW, margin);
                 }
 
-                y = this.sectionHeader(
-                    doc, C, margin, y, cW, '📋  TERMS & CONDITIONS'
-                );
+                y = this.sectionHeader(doc, C, margin, y, cW, 'TERMS & CONDITIONS');
                 y += 4;
 
                 const termLines = itin.terms.split('\n').filter(l=>l.trim());
@@ -543,9 +512,9 @@ const ItineraryPDF = {
                 y += 4;
             }
 
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             // BANK DETAILS
-            // ════════════════════════════════════════
+            // ════════════════════════════════
             if (y > pageH - 45) {
                 doc.addPage();
                 y = this.contHeader(doc, settings, C, pageW, margin);
@@ -561,75 +530,60 @@ const ItineraryPDF = {
             doc.setFont('helvetica','bold');
             doc.setFontSize(8);
             doc.setTextColor(...C.primary);
-            doc.text('🏦  BANK DETAILS FOR PAYMENT', margin+4, y+8);
+            doc.text('BANK DETAILS FOR PAYMENT', margin+4, y+8);
 
             doc.setFont('helvetica','normal');
             doc.setFontSize(8.5);
             doc.setTextColor(...C.dark);
             doc.text(
-                `Bank: ${settings.bank_name||''}   |   ` +
-                `A/c No: ${settings.bank_account_no||''}   |   ` +
-                `IFSC: ${settings.bank_ifsc||''}`,
+                `Bank: ${settings.bank_name||''}   |   A/c No: ${settings.bank_account_no||''}   |   IFSC: ${settings.bank_ifsc||''}`,
                 margin+4, y+16
             );
             doc.text(
-                `Branch: ${settings.bank_branch||''}   |   ` +
-                `Account Name: ${settings.bank_account_name||''}`,
+                `Branch: ${settings.bank_branch||''}   |   Account Name: ${settings.bank_account_name||''}`,
                 margin+4, y+23
             );
 
             y += 34;
 
-            // ════════════════════════════════════════
-            // FOOTER on all pages
-            // ════════════════════════════════════════
+            // ════════════════════════════════
+            // FOOTER ALL PAGES
+            // ════════════════════════════════
             this.addFooterAllPages(doc, settings, C, pageW, pageH, margin);
 
-            // ── Page numbers ──
             const totalPages = doc.internal.getNumberOfPages();
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
                 doc.setFont('helvetica','normal');
                 doc.setFontSize(7);
                 doc.setTextColor(...C.gray);
-                doc.text(
-                    `Page ${i} of ${totalPages}`,
-                    pageW/2, pageH-6, { align:'center' }
-                );
+                doc.text(`Page ${i} of ${totalPages}`, pageW/2, pageH-6, { align:'center' });
             }
 
-            // ── Save PDF ──
+            // SAVE
             const safeName = (
-                `Itinerary_${itin.itin_number}_` +
-                `${itin.customer_name||'Customer'}_` +
-                `${itin.destination||'Tour'}`
+                `Itinerary_${itin.itin_number}_${itin.customer_name||'Customer'}_${itin.destination||'Tour'}`
             ).replace(/[^a-zA-Z0-9_\-]/g,'_') + '.pdf';
 
             doc.save(safeName);
-            showToast('✅ PDF Downloaded!', 'success');
+            showToast('PDF Downloaded!', 'success');
 
         } catch(err) {
             console.error('ItineraryPDF Error:', err);
-            showToast('❌ PDF Error: ' + err.message, 'error');
+            showToast('PDF Error: ' + err.message, 'error');
         }
     },
 
-    // ─────────────────────────────────────
-    // Section Header Helper
-    // ─────────────────────────────────────
     sectionHeader(doc, C, margin, y, cW, title) {
         doc.setFillColor(...C.primary);
         doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
         doc.setTextColor(...C.white);
         doc.setFont('helvetica','bold');
-        doc.setFontSize(8.5);
+        doc.setFontSize(9);
         doc.text(title, margin+4, y+5.5);
         return y + 12;
     },
 
-    // ─────────────────────────────────────
-    // Continuation Header (page 2+)
-    // ─────────────────────────────────────
     contHeader(doc, settings, C, pageW, margin) {
         doc.setFillColor(...C.primary);
         doc.rect(0, 0, pageW, 15, 'F');
@@ -639,43 +593,28 @@ const ItineraryPDF = {
         doc.setTextColor(...C.white);
         doc.setFont('helvetica','bold');
         doc.setFontSize(9);
-        doc.text(
-            settings.company_name || 'TRIPZAR HOLIDAYS LLP',
-            margin, 10
-        );
+        doc.text(settings.company_name || 'TRIPZAR HOLIDAYS LLP', margin, 10);
         doc.setFont('helvetica','normal');
         doc.setFontSize(7.5);
-        doc.text(
-            'TOUR ITINERARY & QUOTATION (Continued)',
-            pageW - margin, 10, { align:'right' }
-        );
+        doc.text('TOUR ITINERARY & QUOTATION (Continued)', pageW - margin, 10, { align:'right' });
         return 22;
     },
 
-    // ─────────────────────────────────────
-    // Footer on All Pages
-    // ─────────────────────────────────────
     addFooterAllPages(doc, settings, C, pageW, pageH, margin) {
         const total = doc.internal.getNumberOfPages();
         for (let i = 1; i <= total; i++) {
             doc.setPage(i);
 
-            // Footer bar
             doc.setFillColor(...C.primary);
             doc.rect(0, pageH-18, pageW, 18, 'F');
             doc.setFillColor(...C.accent);
             doc.rect(0, pageH-18, pageW, 1.5, 'F');
 
-            // Company name left
             doc.setTextColor(...C.white);
             doc.setFont('helvetica','bold');
-            doc.setFontSize(7.5);
-            doc.text(
-                settings.company_name || 'TRIPZAR HOLIDAYS LLP',
-                margin, pageH-9
-            );
+            doc.setFontSize(8);
+            doc.text(settings.company_name || 'TRIPZAR HOLIDAYS LLP', margin, pageH-9);
 
-            // Contact center
             doc.setFont('helvetica','normal');
             doc.setFontSize(6.5);
             doc.setTextColor(200, 230, 210);
@@ -684,27 +623,21 @@ const ItineraryPDF = {
                 pageW/2, pageH-9, { align:'center' }
             );
 
-            // Tagline right
             doc.setFont('helvetica','italic');
             doc.setFontSize(7);
             doc.setTextColor(...C.accent);
-            doc.text('Explore Beyond Ordinary ✈', pageW-margin, pageH-9, { align:'right' });
+            doc.text('Explore Beyond Ordinary', pageW-margin, pageH-9, { align:'right' });
 
-            // Fine print
             doc.setFont('helvetica','normal');
             doc.setFontSize(6);
             doc.setTextColor(170, 210, 185);
             doc.text(
-                'This is a computer-generated document. ' +
-                'For queries, please contact us at the above details.',
+                'This is a computer-generated document. For queries, please contact us at the above details.',
                 pageW/2, pageH-3, { align:'center' }
             );
         }
     },
 
-    // ─────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────
     fmtDate(dateStr) {
         if (!dateStr) return '';
         try {
