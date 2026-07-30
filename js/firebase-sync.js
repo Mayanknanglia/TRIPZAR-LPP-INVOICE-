@@ -1,6 +1,6 @@
 /* =============================================
-   FIREBASE SYNC v4.0 - FULL DATA SYNC
-   Everything: Invoices + Customers + Purchases + Suppliers + Settings + Auth + Photos
+   FIREBASE SYNC v5.0 - WITH ITINERARY SYNC
+   Everything: Invoices + Customers + Purchases + Suppliers + Itineraries + Settings + Auth
    ============================================= */
 
 const FirebaseSync = {
@@ -46,7 +46,7 @@ const FirebaseSync = {
             });
         }
 
-        console.log('✅ FirebaseSync v4.0 initialized');
+        console.log('✅ FirebaseSync v5.0 initialized');
         setTimeout(() => this.autoLogin(), 500);
         return true;
     },
@@ -144,7 +144,7 @@ const FirebaseSync = {
                 console.log(`✅ ${customers.length} customers synced`);
             }
 
-            // 3. ⭐ PURCHASES (NEW)
+            // 3. PURCHASES
             const purchasesSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'purchases')
             );
@@ -155,7 +155,7 @@ const FirebaseSync = {
                 console.log(`✅ ${purchases.length} purchases synced`);
             }
 
-            // 4. ⭐ SUPPLIERS (NEW)
+            // 4. SUPPLIERS
             const suppliersSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'suppliers')
             );
@@ -166,7 +166,18 @@ const FirebaseSync = {
                 console.log(`✅ ${suppliers.length} suppliers synced`);
             }
 
-            // 5. SETTINGS (includes logo)
+            // 5. ⭐ ITINERARIES (NEW)
+            const itinsSnap = await window.fbGetDocs(
+                window.fbCollection(window.firebaseDB, 'itineraries')
+            );
+            const itineraries = [];
+            itinsSnap.forEach(doc => itineraries.push(doc.data()));
+            if (itineraries.length > 0) {
+                DB.saveItineraries(itineraries);
+                console.log(`✅ ${itineraries.length} itineraries synced`);
+            }
+
+            // 6. SETTINGS (includes logo)
             const settingsSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'settings')
             );
@@ -177,7 +188,7 @@ const FirebaseSync = {
                 }
             });
 
-            // 6. AUTH (Profile + Password + Photo)
+            // 7. AUTH (Profile + Password + Photo)
             const authSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'auth')
             );
@@ -188,7 +199,7 @@ const FirebaseSync = {
                 }
             });
 
-            // 7. FY COUNTERS
+            // 8. FY COUNTERS
             const fyCountersSnap = await window.fbGetDocs(
                 window.fbCollection(window.firebaseDB, 'fy_counters')
             );
@@ -200,7 +211,19 @@ const FirebaseSync = {
                 localStorage.setItem('tripzar_fy_counter', JSON.stringify(counters));
             }
 
-            if (invoices.length > 0 || customers.length > 0 || purchases.length > 0) {
+            // 9. ⭐ ITINERARY COUNTER (NEW)
+            const itinCounterSnap = await window.fbGetDocs(
+                window.fbCollection(window.firebaseDB, 'itin_counter')
+            );
+            itinCounterSnap.forEach(doc => {
+                if (doc.id === 'current') {
+                    localStorage.setItem('tripzar_itin_counter', 
+                        String(doc.data().count || 0));
+                }
+            });
+
+            if (invoices.length > 0 || customers.length > 0 || 
+                purchases.length > 0 || itineraries.length > 0) {
                 if (typeof showToast === 'function') {
                     showToast('☁️ Everything synced from cloud', 'success');
                 }
@@ -251,7 +274,7 @@ const FirebaseSync = {
             );
             this.listeners.push(custUnsub);
 
-            // ⭐ Purchases (NEW)
+            // Purchases
             const purUnsub = window.fbOnSnapshot(
                 window.fbCollection(window.firebaseDB, 'purchases'),
                 (snapshot) => {
@@ -266,7 +289,7 @@ const FirebaseSync = {
             );
             this.listeners.push(purUnsub);
 
-            // ⭐ Suppliers (NEW)
+            // Suppliers
             const supUnsub = window.fbOnSnapshot(
                 window.fbCollection(window.firebaseDB, 'suppliers'),
                 (snapshot) => {
@@ -280,6 +303,25 @@ const FirebaseSync = {
                 }
             );
             this.listeners.push(supUnsub);
+
+            // ⭐ ITINERARIES (NEW)
+            const itinUnsub = window.fbOnSnapshot(
+                window.fbCollection(window.firebaseDB, 'itineraries'),
+                (snapshot) => {
+                    const itineraries = [];
+                    snapshot.forEach(doc => itineraries.push(doc.data()));
+                    DB.saveItineraries(itineraries);
+                    console.log(`🔄 Real-time: ${itineraries.length} itineraries`);
+                    if (document.getElementById('page-itinerary')?.classList.contains('active')) {
+                        if (typeof Itinerary !== 'undefined' && Itinerary.render) {
+                            // Only refresh list view (not detail/form)
+                            const hasList = document.getElementById('itinList');
+                            if (hasList) Itinerary.render();
+                        }
+                    }
+                }
+            );
+            this.listeners.push(itinUnsub);
 
             // Settings + Logo
             const setUnsub = window.fbOnSnapshot(
@@ -311,7 +353,7 @@ const FirebaseSync = {
             );
             this.listeners.push(authUnsub);
 
-            console.log('👂 Real-time sync ACTIVE (All data)');
+            console.log('👂 Real-time sync ACTIVE (All data + Itineraries)');
         } catch (error) {
             console.error('Realtime sync error:', error);
         }
@@ -383,7 +425,6 @@ const FirebaseSync = {
         }
     },
 
-    // ⭐ NEW: Save Purchase
     async savePurchase(purchase) {
         const purchases = DB.getPurchases();
         const idx = purchases.findIndex(p => p.id === purchase.id);
@@ -409,7 +450,6 @@ const FirebaseSync = {
         }
     },
 
-    // ⭐ NEW: Save Supplier
     async saveSupplier(supplier) {
         const suppliers = DB.getSuppliers();
         const idx = suppliers.findIndex(s => s.id === supplier.id);
@@ -432,6 +472,71 @@ const FirebaseSync = {
             }
         } else {
             this.queueChange('supplier', supplier);
+        }
+    },
+
+    // ⭐ NEW: Save Itinerary
+    async saveItinerary(itinerary) {
+        const itineraries = DB.getItineraries();
+        const idx = itineraries.findIndex(i => i.id === itinerary.id);
+        if (idx !== -1) itineraries[idx] = itinerary;
+        else itineraries.push(itinerary);
+        DB.saveItineraries(itineraries);
+
+        if (this.online && this.userId) {
+            try {
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'itineraries', itinerary.id),
+                    itinerary
+                );
+                console.log('✅ Itinerary synced:', itinerary.itin_number);
+
+                // Also sync counter
+                const counter = parseInt(
+                    localStorage.getItem('tripzar_itin_counter') || '0'
+                );
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'itin_counter', 'current'),
+                    { count: counter }
+                );
+                return true;
+            } catch (error) {
+                console.error('Itinerary sync error:', error);
+                this.queueChange('itinerary', itinerary);
+                return false;
+            }
+        } else {
+            this.queueChange('itinerary', itinerary);
+        }
+    },
+
+    // ⭐ NEW: Bulk sync all itineraries (called from Itinerary.js)
+    async syncItineraries() {
+        if (!this.online || !this.userId) return;
+
+        try {
+            const itineraries = DB.getItineraries();
+            for (const itin of itineraries) {
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'itineraries', itin.id),
+                    itin
+                );
+            }
+
+            // Sync counter too
+            const counter = parseInt(
+                localStorage.getItem('tripzar_itin_counter') || '0'
+            );
+            await window.fbSetDoc(
+                window.fbDoc(window.firebaseDB, 'itin_counter', 'current'),
+                { count: counter }
+            );
+
+            console.log(`✅ ${itineraries.length} itineraries synced to cloud`);
+            return true;
+        } catch (error) {
+            console.error('Bulk itinerary sync error:', error);
+            return false;
         }
     },
 
@@ -504,7 +609,6 @@ const FirebaseSync = {
         }
     },
 
-    // ⭐ NEW: Delete Purchase
     async deletePurchase(id) {
         const purchases = DB.getPurchases();
         const p = purchases.find(x => x.id === id);
@@ -524,7 +628,6 @@ const FirebaseSync = {
         }
     },
 
-    // ⭐ NEW: Delete Supplier
     async deleteSupplier(id) {
         const suppliers = DB.getSuppliers().filter(s => s.id !== id);
         DB.saveSuppliers(suppliers);
@@ -534,6 +637,26 @@ const FirebaseSync = {
                 await window.fbDeleteDoc(
                     window.fbDoc(window.firebaseDB, 'suppliers', id)
                 );
+                return true;
+            } catch (error) { return false; }
+        }
+    },
+
+    // ⭐ NEW: Delete Itinerary
+    async deleteItinerary(id) {
+        const itineraries = DB.getItineraries();
+        const itin = itineraries.find(i => i.id === id);
+        if (itin) itin.status = 'deleted';
+        DB.saveItineraries(itineraries);
+
+        if (this.online && this.userId) {
+            try {
+                if (itin) {
+                    await window.fbSetDoc(
+                        window.fbDoc(window.firebaseDB, 'itineraries', id),
+                        itin
+                    );
+                }
                 return true;
             } catch (error) { return false; }
         }
@@ -559,6 +682,7 @@ const FirebaseSync = {
             else if (item.type === 'customer') await this.saveCustomer(item.data);
             else if (item.type === 'purchase') await this.savePurchase(item.data);
             else if (item.type === 'supplier') await this.saveSupplier(item.data);
+            else if (item.type === 'itinerary') await this.saveItinerary(item.data);
             else if (item.type === 'auth') await this.saveAuth(item.data);
             else if (item.type === 'settings') await this.saveSettings(item.data);
         }
@@ -603,7 +727,7 @@ const FirebaseSync = {
             }
             console.log(`✅ ${customers.length} customers uploaded`);
 
-            // 3. ⭐ Purchases (NEW)
+            // 3. Purchases
             const purchases = DB.getPurchases();
             for (const pur of purchases) {
                 await window.fbSetDoc(
@@ -613,7 +737,7 @@ const FirebaseSync = {
             }
             console.log(`✅ ${purchases.length} purchases uploaded`);
 
-            // 4. ⭐ Suppliers (NEW)
+            // 4. Suppliers
             const suppliers = DB.getSuppliers();
             for (const sup of suppliers) {
                 await window.fbSetDoc(
@@ -623,7 +747,17 @@ const FirebaseSync = {
             }
             console.log(`✅ ${suppliers.length} suppliers uploaded`);
 
-            // 5. Settings + Logo
+            // 5. ⭐ ITINERARIES (NEW)
+            const itineraries = DB.getItineraries();
+            for (const itin of itineraries) {
+                await window.fbSetDoc(
+                    window.fbDoc(window.firebaseDB, 'itineraries', itin.id),
+                    itin
+                );
+            }
+            console.log(`✅ ${itineraries.length} itineraries uploaded`);
+
+            // 6. Settings + Logo
             const settings = DB.getSettings();
             await window.fbSetDoc(
                 window.fbDoc(window.firebaseDB, 'settings', 'company'),
@@ -631,7 +765,7 @@ const FirebaseSync = {
             );
             console.log('✅ Settings + Logo uploaded');
 
-            // 6. Auth (Profile + Photo + Password)
+            // 7. Auth (Profile + Photo + Password)
             const auth = DB.getAuth();
             await window.fbSetDoc(
                 window.fbDoc(window.firebaseDB, 'auth', 'user'),
@@ -639,7 +773,7 @@ const FirebaseSync = {
             );
             console.log('✅ Profile + Photo uploaded');
 
-            // 7. FY Counters
+            // 8. FY Counters
             const counters = DB.getFYCounters();
             for (const [fy, count] of Object.entries(counters)) {
                 await window.fbSetDoc(
@@ -648,8 +782,22 @@ const FirebaseSync = {
                 );
             }
 
+            // 9. ⭐ Itinerary Counter (NEW)
+            const itinCounter = parseInt(
+                localStorage.getItem('tripzar_itin_counter') || '0'
+            );
+            await window.fbSetDoc(
+                window.fbDoc(window.firebaseDB, 'itin_counter', 'current'),
+                { count: itinCounter }
+            );
+
             if (typeof showToast === 'function') {
-                showToast(`🎉 All uploaded! ${invoices.length} invoices, ${customers.length} customers, ${purchases.length} purchases, ${suppliers.length} suppliers`, 'success');
+                showToast(
+                    `🎉 Uploaded! ${invoices.length} invoices, ${customers.length} customers, ` +
+                    `${purchases.length} purchases, ${suppliers.length} suppliers, ` +
+                    `${itineraries.length} itineraries`,
+                    'success'
+                );
             }
             return true;
 
@@ -678,6 +826,12 @@ const FirebaseSync = {
             }
             if (document.getElementById('page-suppliers')?.classList.contains('active')) {
                 if (typeof renderSuppliers === 'function') renderSuppliers();
+            }
+            if (document.getElementById('page-itinerary')?.classList.contains('active')) {
+                const hasList = document.getElementById('itinList');
+                if (hasList && typeof Itinerary !== 'undefined' && Itinerary.render) {
+                    Itinerary.render();
+                }
             }
             if (document.getElementById('page-settings')?.classList.contains('active')) {
                 if (typeof renderSettings === 'function') renderSettings();
