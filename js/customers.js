@@ -1,17 +1,14 @@
-﻿/* =============================================
-   CUSTOMERS v6 - COMPLETE
+/* =============================================
+   CUSTOMERS v7 - COMPLETE
    ✅ GST Auto-Fetch (5 APIs)
    ✅ GST Portal Direct Link
-   ✅ Helper Modal with Steps
    ✅ Firebase Sync
-   ✅ PDF Export (Branded)
+   ✅ PDF Export (List)
+   ✅ Individual Customer Ledger + PDF ⭐ NEW
    ============================================= */
 
 let customerSearchQuery = '';
 
-// ============================================
-// RENDER CUSTOMERS LIST
-// ============================================
 function renderCustomers() {
     const customers = DB.searchCustomers(customerSearchQuery);
 
@@ -48,14 +45,18 @@ function renderCustomers() {
                             <th class="hide-mobile">GST/Tax ID</th>
                             <th class="hide-mobile">Location</th>
                             <th class="hide-mobile">Phone</th>
+                            <th class="text-right">Invoices</th>
+                            <th class="text-right hide-mobile">Total</th>
                             <th class="text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${customers.length === 0 ? `
-                            <tr><td colspan="5"><div class="empty-state"><span class="material-icons-round">people</span><p>No customers found</p><button class="btn btn-primary" onclick="openCustomerModal()">Add First Customer</button></div></td></tr>
-                        ` : customers.map(c => `
-                            <tr>
+                            <tr><td colspan="7"><div class="empty-state"><span class="material-icons-round">people</span><p>No customers found</p><button class="btn btn-primary" onclick="openCustomerModal()">Add First Customer</button></div></td></tr>
+                        ` : customers.map(c => {
+                            const stats = getCustomerStats(c.id);
+                            return `
+                            <tr style="cursor:pointer" onclick="viewCustomerLedger('${c.id}')">
                                 <td>
                                     <strong>${c.name}</strong>
                                     ${c.email ? `<br><small style="color:var(--text-muted);font-size:11px">📧 ${c.email}</small>` : ''}
@@ -65,14 +66,17 @@ function renderCustomers() {
                                 </td>
                                 <td class="hide-mobile">${c.state || '-'}${c.country && c.country !== 'India' ? ', ' + c.country : ''}</td>
                                 <td class="hide-mobile">${c.phone || '-'}</td>
-                                <td class="text-right">
+                                <td class="text-right"><strong>${stats.totalInvoices}</strong></td>
+                                <td class="text-right hide-mobile">${formatCurrency(stats.totalAmount)}</td>
+                                <td class="text-right" onclick="event.stopPropagation()">
                                     <div class="table-actions">
+                                        <button class="btn-sm btn-view" onclick="viewCustomerLedger('${c.id}')">Ledger</button>
                                         <button class="btn-sm btn-edit" onclick="openCustomerModal('${c.id}')">Edit</button>
                                         <button class="btn-sm btn-del" onclick="deleteCustomerAction('${c.id}')">Delete</button>
                                     </div>
                                 </td>
-                            </tr>
-                        `).join('')}
+                            </tr>`;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -81,7 +85,22 @@ function renderCustomers() {
 }
 
 // ============================================
-// PDF EXPORT
+// ⭐ CUSTOMER STATS HELPER
+// ============================================
+function getCustomerStats(customerId) {
+    const invoices = DB.getActiveInvoices().filter(inv => inv.customer_id === customerId);
+    const totalAmount = invoices.reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
+    const paidAmount = invoices.filter(inv => inv.payment_status === 'paid').reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
+    return {
+        totalInvoices: invoices.length,
+        totalAmount: totalAmount,
+        paidAmount: paidAmount,
+        outstanding: totalAmount - paidAmount
+    };
+}
+
+// ============================================
+// PDF EXPORT (List)
 // ============================================
 function exportCustomersPDF() {
     const customers = DB.searchCustomers(customerSearchQuery);
@@ -92,6 +111,170 @@ function exportCustomersPDF() {
     } else {
         showToast('PDF Export module not loaded!', 'error');
     }
+}
+
+// ============================================
+// ⭐ CUSTOMER LEDGER VIEW (NEW)
+// ============================================
+function viewCustomerLedger(id) {
+    const customer = DB.getCustomerById(id);
+    if (!customer) return;
+
+    const invoices = DB.getActiveInvoices().filter(inv => inv.customer_id === id);
+    const stats = getCustomerStats(id);
+
+    const modal = document.getElementById('modalContent');
+    const container = document.getElementById('modalContainer');
+
+    modal.innerHTML = `
+        <div class="modal-header" style="background:linear-gradient(135deg,var(--primary),var(--accent));color:white">
+            <h2 style="color:white">📊 ${toProperCase(customer.name)} — Ledger</h2>
+            <button class="modal-close" style="color:white" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+            
+            <div style="background:var(--bg);padding:12px;border-radius:8px;margin-bottom:15px;font-size:13px">
+                ${customer.gst_no ? `<div><strong>GST:</strong> <span style="font-family:monospace">${customer.gst_no}</span></div>` : ''}
+                ${customer.phone ? `<div style="margin-top:4px"><strong>📞</strong> ${customer.phone}</div>` : ''}
+                ${customer.email ? `<div style="margin-top:4px"><strong>📧</strong> ${customer.email}</div>` : ''}
+                ${customer.city ? `<div style="margin-top:4px"><strong>📍</strong> ${customer.city}${customer.pincode ? ' - ' + customer.pincode : ''}, ${customer.state || ''}</div>` : ''}
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px">
+                <div style="background:#e3f2fd;padding:12px;border-radius:8px;text-align:center">
+                    <div style="font-size:11px;color:#1565c0">Total Invoices</div>
+                    <div style="font-size:20px;font-weight:800;color:#0d47a1">${stats.totalInvoices}</div>
+                </div>
+                <div style="background:#f3e5f5;padding:12px;border-radius:8px;text-align:center">
+                    <div style="font-size:11px;color:#6a1b9a">Total Amount</div>
+                    <div style="font-size:14px;font-weight:800;color:#4a148c">${formatCurrency(stats.totalAmount)}</div>
+                </div>
+                <div style="background:#e8f5e9;padding:12px;border-radius:8px;text-align:center">
+                    <div style="font-size:11px;color:#2e7d32">Paid</div>
+                    <div style="font-size:14px;font-weight:800;color:#1b5e20">${formatCurrency(stats.paidAmount)}</div>
+                </div>
+                <div style="background:${stats.outstanding > 0 ? '#ffebee' : '#e8f5e9'};padding:12px;border-radius:8px;text-align:center">
+                    <div style="font-size:11px;color:${stats.outstanding > 0 ? '#c62828' : '#2e7d32'}">Outstanding</div>
+                    <div style="font-size:14px;font-weight:800;color:${stats.outstanding > 0 ? '#b71c1c' : '#1b5e20'}">${formatCurrency(stats.outstanding)}</div>
+                </div>
+            </div>
+
+            ${invoices.length === 0 ? `
+                <div style="text-align:center;padding:30px;color:var(--text-muted)">
+                    <span class="material-icons-round" style="font-size:40px;opacity:0.3">receipt_long</span>
+                    <p style="margin-top:8px">No invoices for this customer yet</p>
+                </div>
+            ` : `
+                <table style="width:100%;font-size:12px">
+                    <thead style="background:var(--bg)">
+                        <tr>
+                            <th style="padding:8px;text-align:left">Date</th>
+                            <th style="padding:8px;text-align:left">Invoice No</th>
+                            <th style="padding:8px;text-align:right">Amount</th>
+                            <th style="padding:8px;text-align:center">GST Type</th>
+                            <th style="padding:8px;text-align:center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${invoices.sort((a,b) => new Date(b.invoice_date) - new Date(a.invoice_date)).map(inv => `
+                            <tr style="border-top:1px solid var(--border);cursor:pointer" onclick="closeModal(); viewInvoice('${inv.id}')">
+                                <td style="padding:8px">${formatDate(inv.invoice_date)}</td>
+                                <td style="padding:8px;font-family:monospace;color:var(--primary);font-weight:600">${inv.invoice_number}</td>
+                                <td style="padding:8px;text-align:right"><strong>${formatCurrency(inv.grand_total)}</strong></td>
+                                <td style="padding:8px;text-align:center"><span class="badge badge-info" style="font-size:10px">${inv.gst_type_label || '-'}</span></td>
+                                <td style="padding:8px;text-align:center"><span class="badge ${inv.payment_status==='paid'?'badge-success':inv.payment_status==='partial'?'badge-warning':'badge-danger'}">${inv.payment_status}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `}
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            <button class="btn" style="background:#dc2626;color:white" onclick="exportCustomerLedgerPDF('${id}')">
+                <span class="material-icons-round">picture_as_pdf</span> Download Ledger PDF
+            </button>
+            <button class="btn btn-primary" onclick="createNewInvoiceFromCustomer('${id}')">
+                <span class="material-icons-round">add</span> New Invoice
+            </button>
+        </div>
+    `;
+    container.classList.remove('hidden');
+}
+
+// ============================================
+// CREATE NEW INVOICE FROM CUSTOMER
+// ============================================
+function createNewInvoiceFromCustomer(customerId) {
+    closeModal();
+    navigateTo('newInvoice');
+    
+    setTimeout(() => {
+        const custSelect = document.getElementById('invCustomer');
+        if (custSelect) {
+            custSelect.value = customerId;
+            if (typeof onCustomerSelect === 'function') onCustomerSelect();
+        }
+    }, 200);
+}
+
+// ============================================
+// ⭐ EXPORT INDIVIDUAL CUSTOMER LEDGER PDF
+// ============================================
+function exportCustomerLedgerPDF(id) {
+    const customer = DB.getCustomerById(id);
+    if (!customer) return;
+
+    const invoices = DB.getActiveInvoices().filter(inv => inv.customer_id === id);
+    if (invoices.length === 0) {
+        showToast('No invoices to export!', 'warning');
+        return;
+    }
+
+    if (typeof PDFExport === 'undefined') {
+        showToast('PDF Export module not loaded!', 'error');
+        return;
+    }
+
+    const ledgerData = invoices
+        .sort((a, b) => new Date(b.invoice_date) - new Date(a.invoice_date))
+        .map((inv, idx) => ({
+            sno: idx + 1,
+            date: PDFExport.formatDate(inv.invoice_date),
+            invoice_no: inv.invoice_number,
+            taxable: inv.taxable_amount || 0,
+            tax: inv.total_tax || 0,
+            total: inv.grand_total || 0,
+            status: (inv.payment_status || 'unpaid').toUpperCase()
+        }));
+
+    const columns = [
+        { key: 'sno', label: '#', width: 0.3, align: 'center' },
+        { key: 'date', label: 'Date', width: 0.8 },
+        { key: 'invoice_no', label: 'Invoice No', width: 1.2 },
+        { key: 'taxable', label: 'Taxable', width: 1, align: 'right', type: 'currency' },
+        { key: 'tax', label: 'GST', width: 0.9, align: 'right', type: 'currency' },
+        { key: 'total', label: 'Total', width: 1, align: 'right', type: 'currency' },
+        { key: 'status', label: 'Status', width: 0.7, align: 'center' }
+    ];
+
+    const stats = getCustomerStats(id);
+    const cleanName = customer.name.replace(/[^a-zA-Z0-9]/g, '_');
+
+    PDFExport.export({
+        title: 'Customer Ledger — ' + customer.name,
+        subtitle: (customer.gst_no ? 'GSTIN: ' + customer.gst_no + ' | ' : '') + (customer.city || '') + (customer.phone ? ' | 📞 ' + customer.phone : ''),
+        columns: columns,
+        data: ledgerData,
+        orientation: 'landscape',
+        summary: {
+            'Total Invoices': stats.totalInvoices,
+            'Total Amount': PDFExport.formatCurrency(stats.totalAmount),
+            'Paid': PDFExport.formatCurrency(stats.paidAmount),
+            'Outstanding': PDFExport.formatCurrency(stats.outstanding)
+        },
+        filename: 'Customer_' + cleanName + '_' + PDFExport.getDateStr() + '.pdf'
+    });
 }
 
 // ============================================
@@ -115,7 +298,6 @@ function openCustomerModal(id = null) {
         </div>
         <div class="modal-body">
             
-            <!-- ============ GST AUTO-FETCH SECTION ============ -->
             <div style="background:linear-gradient(135deg,#fff9e6,#fff3d1);padding:14px;border-radius:10px;margin-bottom:20px;border:2px solid #ffc107">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                     <span class="material-icons-round" style="color:#ff9800">auto_awesome</span>
@@ -146,7 +328,6 @@ function openCustomerModal(id = null) {
                 </div>
             </div>
 
-            <!-- ============ BASIC INFO ============ -->
             <div class="section-heading">
                 <span class="material-icons-round">person</span> Basic Information
             </div>
@@ -165,7 +346,6 @@ function openCustomerModal(id = null) {
                 </div>
             </div>
 
-            <!-- ============ CONTACT ============ -->
             <div class="section-heading">
                 <span class="material-icons-round">contact_phone</span> Contact
             </div>
@@ -180,7 +360,6 @@ function openCustomerModal(id = null) {
                 </div>
             </div>
 
-            <!-- ============ ADDRESS ============ -->
             <div class="section-heading">
                 <span class="material-icons-round">location_on</span> Address
             </div>
@@ -266,26 +445,11 @@ function onGSTInput(input) {
     }
 }
 
-// ============================================
-// AUTO-FETCH GST DETAILS (5 APIs Try)
-// ============================================
 async function fetchGSTDetails() {
     const gstin = document.getElementById('custGst').value.trim().toUpperCase();
-
-    if (!gstin) {
-        showToast('Enter GSTIN first!', 'error');
-        return;
-    }
-
-    if (typeof GSTLookup === 'undefined') {
-        showToast('❌ GST module not loaded. Refresh page.', 'error');
-        return;
-    }
-
-    if (!GSTLookup.isValidGSTIN(gstin)) {
-        showToast('❌ Invalid GSTIN format!', 'error');
-        return;
-    }
+    if (!gstin) { showToast('Enter GSTIN first!', 'error'); return; }
+    if (typeof GSTLookup === 'undefined') { showToast('❌ GST module not loaded', 'error'); return; }
+    if (!GSTLookup.isValidGSTIN(gstin)) { showToast('❌ Invalid GSTIN format!', 'error'); return; }
 
     const btn = document.getElementById('gstFetchBtn');
     const originalHTML = btn.innerHTML;
@@ -322,7 +486,6 @@ async function fetchGSTDetails() {
                 if (el && value) {
                     el.value = value;
                     el.style.background = '#d1fae5';
-                    el.style.transition = 'background 3s';
                     setTimeout(() => { el.style.background = ''; }, 3000);
                     filledCount++;
                 }
@@ -331,147 +494,63 @@ async function fetchGSTDetails() {
             const statusColor = d.status === 'Active' ? 'badge-success' : 'badge-warning';
             if (badge) {
                 badge.innerHTML = `
-                    <span class="badge ${statusColor}" style="margin-right:4px">Status: ${d.status || 'Unknown'}</span>
+                    <span class="badge ${statusColor}">Status: ${d.status || 'Unknown'}</span>
                     ${d.business_type ? `<span class="badge badge-info">${d.business_type}</span>` : ''}
-                    ${result.source ? `<br><small style="color:var(--text-muted);margin-top:4px;display:inline-block">Source: ${result.source}</small>` : ''}
+                    ${result.source ? `<br><small style="color:var(--text-muted)">Source: ${result.source}</small>` : ''}
                 `;
             }
 
-            if (result.partial) {
-                showToast(`⚠️ Only ${filledCount} fields extracted from GSTIN. Use "GST Portal" for full details.`, 'warning');
-                if (result.message) {
-                    setTimeout(() => showToast(result.message, 'info'), 2500);
-                }
-            } else {
-                showToast(`✅ ${filledCount} fields auto-filled from ${result.source}!`, 'success');
-            }
+            showToast(result.partial ? `⚠️ ${filledCount} fields extracted` : `✅ ${filledCount} fields auto-filled!`, result.partial ? 'warning' : 'success');
         } else {
             showToast(result.error || '❌ Failed to fetch', 'error');
-            if (badge) badge.innerHTML = '<span class="badge badge-danger">❌ Fetch failed - Try GST Portal button</span>';
+            if (badge) badge.innerHTML = '<span class="badge badge-danger">❌ Try GST Portal</span>';
         }
     } catch (error) {
         console.error('GST fetch error:', error);
-        showToast('❌ Network error. Try GST Portal button.', 'error');
-        if (badge) badge.innerHTML = '<span class="badge badge-danger">❌ Try GST Portal</span>';
+        showToast('❌ Network error', 'error');
     } finally {
         btn.innerHTML = originalHTML;
         btn.disabled = false;
     }
 }
 
-// ============================================
-// 🌐 OPEN GST PORTAL (Government Website)
-// ============================================
 function openGSTPortalSearch() {
     const gstin = document.getElementById('custGst').value.trim().toUpperCase();
-    
     if (!gstin) {
         window.open('https://services.gst.gov.in/services/searchtp', '_blank');
-        showToast('🌐 GST Portal opened. Enter GSTIN there and copy details back.', 'info');
+        showToast('🌐 GST Portal opened', 'info');
         return;
     }
-
-    if (!GSTLookup.isValidGSTIN(gstin)) {
-        showToast('❌ Invalid GSTIN format!', 'error');
-        return;
-    }
-
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(gstin).then(() => {
-            console.log('GSTIN copied to clipboard');
-        }).catch(err => console.log('Clipboard error:', err));
-    }
-
+    if (!GSTLookup.isValidGSTIN(gstin)) { showToast('❌ Invalid GSTIN', 'error'); return; }
+    if (navigator.clipboard) navigator.clipboard.writeText(gstin).catch(() => {});
     showGSTPortalHelperModal(gstin);
 }
 
-// ============================================
-// GST PORTAL HELPER MODAL
-// ============================================
 function showGSTPortalHelperModal(gstin) {
     const existingModal = document.getElementById('modalContent');
     window._savedCustomerModal = existingModal.innerHTML;
 
     existingModal.innerHTML = `
         <div class="modal-header" style="background:linear-gradient(135deg,#4285F4,#1a73e8);color:white">
-            <h2 style="color:white">
-                <span class="material-icons-round" style="vertical-align:middle">public</span>
-                GST Portal Search
-            </h2>
+            <h2 style="color:white">🌐 GST Portal Search</h2>
             <button class="modal-close" style="color:white" onclick="closeGSTHelperAndReopenCustomer()">&times;</button>
         </div>
         <div class="modal-body">
             <div style="background:#e8f0fe;padding:14px;border-radius:10px;margin-bottom:15px;border-left:4px solid #4285F4">
-                <p style="font-size:13px;color:#1a73e8;margin-bottom:8px">
-                    <strong>📋 GSTIN copied to clipboard:</strong>
-                </p>
-                <div style="background:white;padding:10px;border-radius:6px;font-family:monospace;font-weight:700;color:#1a73e8;font-size:14px;text-align:center;letter-spacing:1px">
-                    ${gstin}
-                </div>
-                <p style="font-size:12px;color:#555;margin-top:8px">
-                    ✅ Ready to paste in GST Portal!
-                </p>
+                <p style="font-size:13px;color:#1a73e8;margin-bottom:8px"><strong>📋 GSTIN copied:</strong></p>
+                <div style="background:white;padding:10px;border-radius:6px;font-family:monospace;font-weight:700;color:#1a73e8;text-align:center;letter-spacing:1px">${gstin}</div>
             </div>
-
-            <h4 style="font-size:14px;margin-bottom:12px;color:var(--primary)">
-                <span class="material-icons-round" style="vertical-align:middle;font-size:18px">list_alt</span>
-                Simple 5 Steps:
-            </h4>
-
-            <div class="install-step-list">
-                <div class="install-step">
-                    <div class="step-number">1</div>
-                    <div class="step-text">
-                        <strong>Click "Open GST Portal"</strong> button below
-                        <br><small style="color:var(--text-muted)">Government website naye tab me khulegi</small>
-                    </div>
-                </div>
-                <div class="install-step">
-                    <div class="step-number">2</div>
-                    <div class="step-text">
-                        <strong>Paste GSTIN</strong> in search box
-                        <br><small style="color:var(--text-muted)">Ctrl+V dabao (already copied hai!)</small>
-                    </div>
-                </div>
-                <div class="install-step">
-                    <div class="step-number">3</div>
-                    <div class="step-text">
-                        <strong>Solve captcha</strong> aur Search click karo
-                        <br><small style="color:var(--text-muted)">Company details 2 sec me dikhengi</small>
-                    </div>
-                </div>
-                <div class="install-step">
-                    <div class="step-number">4</div>
-                    <div class="step-text">
-                        <strong>Copy details</strong>: Name, Address, City
-                        <br><small style="color:var(--text-muted)">Text select karo → Ctrl+C</small>
-                    </div>
-                </div>
-                <div class="install-step">
-                    <div class="step-number">5</div>
-                    <div class="step-text">
-                        <strong>Wapas aao aur paste karo</strong> customer form me
-                        <br><small style="color:var(--text-muted)">"Back to Customer" click karo</small>
-                    </div>
-                </div>
-            </div>
-
-            <div style="background:#fff3e0;padding:12px;border-radius:8px;margin-top:15px;border-left:3px solid #ff9800;font-size:12px;color:#e65100">
-                <strong>💡 Why GST Portal?</strong><br>
-                • ✅ 100% FREE (Government site)<br>
-                • ✅ 100% RELIABLE (Always works)<br>
-                • ✅ 100% ACCURATE (Real data)<br>
-                • ⏱️ Only 60 seconds per customer
-            </div>
-
-            <div style="background:#d1fae5;padding:12px;border-radius:8px;margin-top:10px;border-left:3px solid #10b981;font-size:12px;color:#065f46">
-                <strong>🎁 Pro Tip:</strong> Chrome me GST Portal ko bookmark bar me pin kar lo — faster access!
-            </div>
+            <h4 style="font-size:14px;margin-bottom:12px;color:var(--primary)">📋 Simple Steps:</h4>
+            <ol style="font-size:13px;line-height:1.8;padding-left:20px">
+                <li>Click <strong>"Open GST Portal"</strong> below</li>
+                <li>Paste GSTIN (Ctrl+V)</li>
+                <li>Solve captcha & Search</li>
+                <li>Copy details from portal</li>
+                <li>Come back & paste in form</li>
+            </ol>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeGSTHelperAndReopenCustomer()">
-                <span class="material-icons-round">arrow_back</span> Back to Customer
-            </button>
+            <button class="btn btn-secondary" onclick="closeGSTHelperAndReopenCustomer()">← Back to Customer</button>
             <button class="btn btn-primary" onclick="openGSTPortalNow('${gstin}')" style="background:linear-gradient(135deg,#4285F4,#1a73e8)">
                 <span class="material-icons-round">open_in_new</span> Open GST Portal
             </button>
@@ -481,7 +560,7 @@ function showGSTPortalHelperModal(gstin) {
 
 function openGSTPortalNow(gstin) {
     window.open('https://services.gst.gov.in/services/searchtp', '_blank');
-    showToast(`✅ GST Portal opened! GSTIN ${gstin} in clipboard. Paste it there.`, 'success');
+    showToast(`✅ GST Portal opened! GSTIN ${gstin} in clipboard.`, 'success');
 }
 
 function closeGSTHelperAndReopenCustomer() {
@@ -493,41 +572,24 @@ function closeGSTHelperAndReopenCustomer() {
     }
 }
 
-// ============================================
-// GST SEARCH MODAL (Search any company)
-// ============================================
 function openGSTSearchModal() {
     const modal = document.getElementById('modalContent');
     modal.innerHTML = `
         <div class="modal-header" style="background:linear-gradient(135deg,#ff9800,#f57c00);color:white">
-            <h2 style="color:white">
-                <span class="material-icons-round" style="vertical-align:middle">search</span>
-                GST Search Portal
-            </h2>
+            <h2 style="color:white">🔍 GST Search Portal</h2>
             <button class="modal-close" style="color:white" onclick="closeModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:15px">
-                🔍 Search any GST registered company
-            </p>
-
             <div style="display:flex;gap:8px;margin-bottom:16px">
-                <input type="text" id="gstSearchInput" placeholder="Enter GSTIN (e.g., 08ABAFT1155E1ZH)" 
-                       style="flex:1;text-transform:uppercase;font-family:monospace;font-weight:600" 
-                       maxlength="15" onkeypress="if(event.key==='Enter') searchGST()">
+                <input type="text" id="gstSearchInput" placeholder="Enter GSTIN" style="flex:1;text-transform:uppercase;font-family:monospace;font-weight:600" maxlength="15" onkeypress="if(event.key==='Enter') searchGST()">
                 <button class="btn btn-primary" onclick="searchGST()" style="background:linear-gradient(135deg,#ff9800,#f57c00)">
                     <span class="material-icons-round">search</span> Auto Search
                 </button>
             </div>
-
-            <div style="text-align:center;margin-bottom:16px">
-                <span style="color:var(--text-muted);font-size:12px">— OR —</span>
-            </div>
-
+            <div style="text-align:center;margin-bottom:16px"><span style="color:var(--text-muted);font-size:12px">— OR —</span></div>
             <button class="btn btn-secondary" onclick="openDirectGSTPortal()" style="width:100%;background:linear-gradient(135deg,#4285F4,#1a73e8);color:white;padding:12px">
-                <span class="material-icons-round">public</span> Open GST Portal (Government Website)
+                <span class="material-icons-round">public</span> Open GST Portal
             </button>
-
             <div id="gstSearchResult" style="min-height:100px;margin-top:16px"></div>
         </div>
         <div class="modal-footer">
@@ -540,89 +602,38 @@ function openGSTSearchModal() {
 
 function openDirectGSTPortal() {
     window.open('https://services.gst.gov.in/services/searchtp', '_blank');
-    showToast('🌐 GST Portal opened in new tab', 'success');
+    showToast('🌐 GST Portal opened', 'success');
 }
 
 async function searchGST() {
     const gstin = document.getElementById('gstSearchInput').value.trim().toUpperCase();
     const resultDiv = document.getElementById('gstSearchResult');
+    if (!gstin) { resultDiv.innerHTML = '<p style="color:var(--danger);text-align:center">Enter GSTIN first</p>'; return; }
+    if (typeof GSTLookup === 'undefined') { resultDiv.innerHTML = '<p style="color:var(--danger)">GST module not loaded</p>'; return; }
 
-    if (!gstin) {
-        resultDiv.innerHTML = '<p style="color:var(--danger);text-align:center">Enter GSTIN first</p>';
-        return;
-    }
-
-    if (typeof GSTLookup === 'undefined') {
-        resultDiv.innerHTML = '<p style="color:var(--danger)">GST module not loaded</p>';
-        return;
-    }
-
-    resultDiv.innerHTML = `
-        <div style="text-align:center;padding:20px">
-            <div class="loader" style="margin:0 auto 10px"></div>
-            <p style="color:var(--text-muted)">Searching... Trying multiple APIs...</p>
-        </div>
-    `;
+    resultDiv.innerHTML = `<div style="text-align:center;padding:20px"><div class="loader" style="margin:0 auto 10px"></div><p>Searching...</p></div>`;
 
     try {
         const result = await GSTLookup.lookup(gstin);
-
         if (result.success && result.data) {
             const d = result.data;
             const statusColor = d.status === 'Active' ? '#10b981' : '#ef4444';
-            const statusBg = d.status === 'Active' ? '#d1fae5' : '#fee2e2';
-
             resultDiv.innerHTML = `
                 <div class="card card-body" style="border-left:4px solid ${statusColor}">
-                    ${result.partial ? `
-                        <div style="background:#fff3e0;padding:10px;border-radius:8px;margin-bottom:12px;border-left:3px solid #ff9800;font-size:12px;color:#e65100">
-                            ⚠️ ${result.message}
-                        </div>
-                    ` : ''}
-
-                    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-                        <div>
-                            <h3 style="font-size:16px;font-weight:700;color:var(--text)">${d.name || d.trade_name || 'Not Available (API failed)'}</h3>
-                            ${d.trade_name && d.trade_name !== d.name ? `<p style="font-size:13px;color:var(--text-secondary)">Trade: ${d.trade_name}</p>` : ''}
-                        </div>
-                        <span style="background:${statusBg};color:${statusColor};padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
-                            ${d.status || 'Unknown'}
-                        </span>
-                    </div>
-
-                    <div class="calc-box" style="font-size:12px">
-                        <div class="calc-row"><span class="calc-label">GSTIN:</span><span class="calc-value" style="font-family:monospace">${d.gstin}</span></div>
+                    <h3 style="font-size:16px;font-weight:700">${d.name || d.trade_name || 'N/A'}</h3>
+                    <div class="calc-box" style="font-size:12px;margin-top:10px">
+                        <div class="calc-row"><span class="calc-label">GSTIN:</span><span class="calc-value">${d.gstin}</span></div>
                         ${d.pan ? `<div class="calc-row"><span class="calc-label">PAN:</span><span class="calc-value">${d.pan}</span></div>` : ''}
-                        ${d.state ? `<div class="calc-row"><span class="calc-label">State:</span><span class="calc-value">${d.state} (${d.state_code})</span></div>` : ''}
+                        ${d.state ? `<div class="calc-row"><span class="calc-label">State:</span><span class="calc-value">${d.state}</span></div>` : ''}
                         ${d.address ? `<div class="calc-row"><span class="calc-label">Address:</span><span class="calc-value">${d.address}</span></div>` : ''}
-                        ${d.city ? `<div class="calc-row"><span class="calc-label">City:</span><span class="calc-value">${d.city} ${d.pincode || ''}</span></div>` : ''}
-                        ${d.business_type ? `<div class="calc-row"><span class="calc-label">Type:</span><span class="calc-value">${d.business_type}</span></div>` : ''}
-                        ${d.registration_date ? `<div class="calc-row"><span class="calc-label">Registered:</span><span class="calc-value">${d.registration_date}</span></div>` : ''}
                     </div>
-
-                    <div class="btn-group" style="margin-top:12px;flex-wrap:wrap">
-                        <button class="btn btn-primary btn-sm" onclick="addFromGSTSearch('${gstin}')" style="background:linear-gradient(135deg,#ff9800,#f57c00);flex:1;min-width:150px">
-                            <span class="material-icons-round">person_add</span> Add as Customer
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="openDirectGSTPortal()" style="background:linear-gradient(135deg,#4285F4,#1a73e8);color:white;flex:1;min-width:150px">
-                            <span class="material-icons-round">public</span> Verify on Portal
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="copyGSTInfo('${d.gstin}', '${(d.name || '').replace(/'/g, '')}')">
-                            <span class="material-icons-round">content_copy</span> Copy
-                        </button>
-                    </div>
-
-                    ${result.source ? `<p style="font-size:10px;color:var(--text-muted);margin-top:8px;text-align:right">Source: ${result.source}</p>` : ''}
+                    <button class="btn btn-primary btn-sm" onclick="addFromGSTSearch('${gstin}')" style="margin-top:12px;width:100%;background:linear-gradient(135deg,#ff9800,#f57c00)">
+                        <span class="material-icons-round">person_add</span> Add as Customer
+                    </button>
                 </div>
             `;
         } else {
-            resultDiv.innerHTML = `
-                <div style="text-align:center;padding:30px;color:var(--danger)">
-                    <span class="material-icons-round" style="font-size:40px;opacity:0.5">error_outline</span>
-                    <p style="margin-top:10px;font-weight:600">${result.error || 'Not found'}</p>
-                    <p style="font-size:12px;color:var(--text-muted);margin-top:8px">Try "Open GST Portal" button above</p>
-                </div>
-            `;
+            resultDiv.innerHTML = `<p style="color:var(--danger);text-align:center">❌ ${result.error || 'Not found'}</p>`;
         }
     } catch (error) {
         resultDiv.innerHTML = `<p style="color:var(--danger);text-align:center">❌ Error: ${error.message}</p>`;
@@ -640,29 +651,15 @@ async function addFromGSTSearch(gstin) {
     }, 300);
 }
 
-function copyGSTInfo(gstin, name) {
-    const text = `GSTIN: ${gstin}\nName: ${name}`;
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('📋 GST info copied!', 'success');
-    }).catch(() => showToast('Copy failed', 'error'));
-}
-
-// ============================================
-// AUTO STATE CODE
-// ============================================
 function autoUpdateStateCode() {
     const stateInput = document.getElementById('custState');
     const codeInput = document.getElementById('custStateCode');
     if (!stateInput || !codeInput) return;
-    const stateName = stateInput.value.trim();
-    if (INDIAN_STATES[stateName]) {
-        codeInput.value = INDIAN_STATES[stateName];
+    if (INDIAN_STATES[stateInput.value.trim()]) {
+        codeInput.value = INDIAN_STATES[stateInput.value.trim()];
     }
 }
 
-// ============================================
-// SAVE CUSTOMER (with Firebase sync)
-// ============================================
 async function saveCustomer(id) {
     const name = document.getElementById('custName').value.trim();
     if (!name) { showToast('Customer name required!', 'error'); return; }
@@ -694,29 +691,19 @@ async function saveCustomer(id) {
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.initialized && FirebaseSync.userId && saved) {
         try {
             await FirebaseSync.saveCustomer(saved);
-            console.log('✅ Customer synced to cloud');
-        } catch (e) {
-            console.error('Firebase sync failed:', e);
-        }
+        } catch (e) { console.error('Firebase sync failed:', e); }
     }
 
     closeModal();
     renderCustomers();
 }
 
-// ============================================
-// DELETE CUSTOMER
-// ============================================
 async function deleteCustomerAction(id) {
     if (!confirmDialog('Delete this customer?')) return;
     const result = DB.deleteCustomer(id);
     if (result) {
-        if (typeof FirebaseSync !== 'undefined' && FirebaseSync.initialized && FirebaseSync.userId) {
-            try {
-                await FirebaseSync.deleteCustomer(id);
-            } catch (e) {
-                console.error('Firebase delete failed:', e);
-            }
+        if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) {
+            try { await FirebaseSync.deleteCustomer(id); } catch (e) {}
         }
         showToast('Deleted!', 'success');
     } else {
@@ -725,10 +712,12 @@ async function deleteCustomerAction(id) {
     renderCustomers();
 }
 
-// ============================================
-// CLOSE MODAL
-// ============================================
 function closeModal() {
     document.getElementById('modalContainer').classList.add('hidden');
     window._savedCustomerModal = null;
+}
+
+function copyGSTInfo(gstin, name) {
+    const text = `GSTIN: ${gstin}\nName: ${name}`;
+    navigator.clipboard.writeText(text).then(() => showToast('📋 Copied!', 'success')).catch(() => showToast('Copy failed', 'error'));
 }
