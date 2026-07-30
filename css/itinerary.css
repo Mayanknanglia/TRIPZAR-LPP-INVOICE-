@@ -1,0 +1,831 @@
+/* =============================================
+   ITINERARY MODULE STYLES v1.0
+   ============================================= */
+
+/* ─── STATS GRID ─── */
+.itin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.itin-stat-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 14px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.itin-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.itin-stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.itin-stat-icon .material-icons-round {
+    font-size: 22px;
+}
+
+.itin-stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.itin-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.itin-stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ─── FILTER ROW ─── */
+.filter-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-select:focus {
+    border-color: var(--primary);
+}
+
+/* ─── ITINERARY LIST ─── */
+.itin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.itin-card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.itin-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.itin-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.itin-card-left {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.itin-number {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+}
+
+.itin-destination {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.itin-card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.itin-status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.itin-amount {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.itin-card-body {
+    padding: 10px 16px 12px;
+}
+
+.itin-meta-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.itin-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.itin-meta-item .material-icons-round {
+    font-size: 14px;
+    color: var(--primary);
+}
+
+.itin-validity {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.itin-validity .material-icons-round {
+    font-size: 14px;
+}
+
+.itin-validity.expired {
+    color: #dc2626;
+}
+
+.expired-tag {
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* ─── CARD ACTIONS ─── */
+.itin-card-actions {
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.itin-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.itin-action-btn .material-icons-round {
+    font-size: 18px;
+}
+
+.itin-action-btn.view      { background: #e8f5e9; color: #1a5632; }
+.itin-action-btn.edit      { background: #e0f2fe; color: #0369a1; }
+.itin-action-btn.pdf       { background: #fce7f3; color: #be185d; }
+.itin-action-btn.whatsapp  { background: #dcfce7; color: #15803d; }
+.itin-action-btn.email     { background: #fef3c7; color: #b45309; }
+.itin-action-btn.convert   { background: #ede9fe; color: #7c3aed; }
+.itin-action-btn.duplicate { background: #e0f2fe; color: #0891b2; }
+.itin-action-btn.delete    { background: #fee2e2; color: #dc2626; }
+
+.itin-action-btn:hover {
+    filter: brightness(0.88);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+}
+
+/* ─── FORM LAYOUT ─── */
+.itin-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    align-items: start;
+}
+
+.itin-form-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.itin-form-right {
+    display: flex;
+    flex-direction: column;
+}
+
+.itin-section {
+    margin-bottom: 16px;
+}
+
+.itin-section:last-child {
+    margin-bottom: 0;
+}
+
+.itin-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.itin-section-title .material-icons-round {
+    font-size: 18px;
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.form-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+}
+
+/* ─── DAY ROWS ─── */
+.itin-day-row {
+    margin-bottom: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.itin-day-row:hover {
+    box-shadow: 0 2px 8px rgba(26,86,50,0.1);
+}
+
+.itin-day-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.itin-day-badge {
+    background: var(--primary);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.itin-day-title {
+    flex: 1;
+    border: none !important;
+    background: transparent !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 4px 6px !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.itin-day-activities {
+    border: none !important;
+    border-radius: 0 !important;
+    resize: vertical;
+    font-size: 13px !important;
+    padding: 10px 12px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    min-height: 70px;
+}
+
+.btn-icon-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.btn-icon-sm.delete-btn {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.btn-icon-sm.delete-btn:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.btn-icon-sm .material-icons-round {
+    font-size: 16px;
+}
+
+/* ─── COST ITEMS ─── */
+.itin-cost-header {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 0 0 6px 0;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.itin-cost-row {
+    display: grid;
+    grid-template-columns: 1fr 100px 28px;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.itin-cost-label {
+    font-size: 12px !important;
+}
+
+.itin-cost-amount {
+    text-align: right !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+/* ─── PRICING CARD ─── */
+.itin-pricing-card {
+    background: var(--card-bg);
+}
+
+.itin-pricing-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 14px 0;
+}
+
+.itin-gst-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* Toggle Switch */
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 38px;
+    height: 21px;
+    background: #ccc;
+    border-radius: 21px;
+    transition: background 0.25s;
+    flex-shrink: 0;
+}
+
+.toggle-label input[type="checkbox"]:checked ~ .toggle-switch {
+    background: var(--primary);
+}
+
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 17px;
+    height: 17px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: left 0.25s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.toggle-label input[type="checkbox"]:checked ~ .toggle-switch::after {
+    left: 19px;
+}
+
+/* Totals Box */
+.itin-totals-box {
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 14px;
+    border: 1px solid var(--border-color);
+}
+
+.itin-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.itin-total-row:last-child {
+    margin-bottom: 0;
+}
+
+.itin-total-row.grand-total {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--primary);
+    padding-top: 10px;
+    border-top: 2px solid var(--primary);
+    margin-top: 6px;
+}
+
+.itin-form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+/* ─── DETAIL VIEW ─── */
+.itin-detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.itin-detail-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    padding: 4px 0;
+}
+
+.itin-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    font-weight: 600;
+}
+
+.detail-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ─── Inc/Exc Grid ─── */
+.itin-inc-exc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.itin-list-ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.itin-list-ul li {
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.itin-list-ul li:last-child {
+    border-bottom: none;
+}
+
+.itin-list-ul.incl li::before {
+    content: '✓';
+    color: #16a34a;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.itin-list-ul.excl li::before {
+    content: '✗';
+    color: #dc2626;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* ─── DAYS VIEW ─── */
+.itin-days-view {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.itin-day-view-row {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.itin-day-view-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.itin-day-view-badge {
+    background: var(--primary);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 54px;
+    text-align: center;
+}
+
+.itin-day-view-content {
+    flex: 1;
+}
+
+.itin-day-view-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.itin-day-view-activities {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+/* ─── COST TABLE ─── */
+.itin-cost-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.itin-cost-table th {
+    padding: 10px 8px;
+    font-weight: 700;
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.itin-cost-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.itin-cost-table tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+.itin-cost-table tfoot td {
+    font-weight: 600;
+    padding: 10px 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.grand-total-row td {
+    background: var(--primary) !important;
+    color: white !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    padding: 12px 8px !important;
+    border-radius: 4px;
+}
+
+/* ─── PAYMENT TERMS BADGE ─── */
+.itin-payment-terms-badge {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: #fffbeb;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #92400e;
+    font-weight: 500;
+}
+
+/* ─── TERMS TEXT ─── */
+.itin-terms-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+    text-align: center;
+    padding: 70px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state .material-icons-round {
+    font-size: 72px;
+    color: var(--border-color);
+    margin-bottom: 16px;
+    display: block;
+}
+
+.empty-state h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+/* ─── DARK MODE ─── */
+body.dark .itin-payment-terms-badge {
+    background: #2d2008;
+    border-color: #b45309;
+    color: #fcd34d;
+}
+
+body.dark .itin-totals-box {
+    background: var(--bg-secondary);
+}
+
+body.dark .toggle-switch {
+    background: #555;
+}
+
+body.dark .itin-day-title,
+body.dark .itin-day-activities {
+    color: var(--text-primary);
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+    .itin-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .itin-pricing-card {
+        position: static !important;
+    }
+
+    .itin-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .itin-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .itin-stats-grid .itin-stat-card:last-child {
+        grid-column: span 2;
+    }
+
+    .form-grid-2,
+    .itin-inc-exc-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid-3 {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .itin-meta-row {
+        gap: 10px;
+    }
+
+    .itin-card-actions {
+        gap: 5px;
+    }
+
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .itin-detail-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .itin-stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .form-grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .itin-cost-row {
+        grid-template-columns: 1fr 85px 28px;
+    }
+
+    .itin-action-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .itin-action-btn .material-icons-round {
+        font-size: 16px;
+    }
+
+    .itin-detail-row {
+        grid-template-columns: 1fr;
+    }
+}
