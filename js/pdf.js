@@ -1,6 +1,5 @@
-﻿/* =============================================
-   PDF v18 - Text Overflow Fixed
-   All text stays within borders
+/* =============================================
+   PDF v19 - Round Off Fixed (Add/Less with signs)
    ============================================= */
 
 function downloadInvoicePDF(invoiceId) {
@@ -34,13 +33,10 @@ function getServiceInfo(type) {
     return { name: 'Service', icon: '', hsn: '998552', isPureAgent: false, defaultGst: 18 };
 }
 
-// Helper: Truncate text to fit within width
 function fitText(doc, text, maxWidth) {
     if (!text) return '';
     const textWidth = doc.getTextWidth(text);
     if (textWidth <= maxWidth) return text;
-    
-    // Truncate character by character until it fits
     let truncated = text;
     while (doc.getTextWidth(truncated + '...') > maxWidth && truncated.length > 0) {
         truncated = truncated.substring(0, truncated.length - 1);
@@ -48,7 +44,6 @@ function fitText(doc, text, maxWidth) {
     return truncated + '...';
 }
 
-// Helper: Wrap text into multiple lines
 function wrapText(doc, text, maxWidth) {
     if (!text) return [''];
     return doc.splitTextToSize(text, maxWidth);
@@ -93,7 +88,7 @@ async function generateInvoicePDF(inv, settings, action) {
         doc.text(settings.company_name || 'TRIPZAR HOLIDAYS LLP', PW / 2, y, { align: 'center' });
         y += 5;
 
-        // ADDRESS (with wrapping)
+        // ADDRESS
         const addr = buildCompanyAddress(settings);
         doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
@@ -103,8 +98,21 @@ async function generateInvoicePDF(inv, settings, action) {
         }
         if (addr.line2) { doc.text(addr.line2, PW / 2, y, { align: 'center' }); y += 3.5; }
         if (addr.line3) { doc.text(addr.line3, PW / 2, y, { align: 'center' }); y += 3.5; }
-        doc.text('GSTIN/UIN:   ' + (settings.gstin || ''), PW / 2, y, { align: 'center' });
+        
+        // LLPIN (right below address)
+        if (settings.llpin) {
+            doc.text('LLPIN:   ' + settings.llpin, PW / 2, y, { align: 'center' });
+            y += 3.5;
+        }
+        
+        // GSTIN + PAN in same line
+        let gstinPanText = 'GSTIN/UIN:   ' + (settings.gstin || '');
+        if (settings.pan) {
+            gstinPanText += '     PAN:   ' + settings.pan;
+        }
+        doc.text(gstinPanText, PW / 2, y, { align: 'center' });
         y += 3.5;
+        
         doc.text('UDYAM:   ' + (settings.udyam || ''), PW / 2, y, { align: 'center' });
         y += 5;
 
@@ -153,7 +161,7 @@ async function generateInvoicePDF(inv, settings, action) {
         if (inv.customer_address) {
             const addrText = toProperCase(inv.customer_address);
             const wrapped = wrapText(doc, addrText, bW - 4);
-            wrapped.slice(0, 2).forEach(line => { // Max 2 lines
+            wrapped.slice(0, 2).forEach(line => {
                 doc.text(line, ML + 2, by);
                 by += 3.5;
             });
@@ -249,7 +257,6 @@ async function generateInvoicePDF(inv, settings, action) {
         const totalT = parseFloat(inv.total_tax) || (cgstA + sgstA + igstA);
         const grandT = parseFloat(inv.grand_total) || 0;
 
-        // Max width for description column
         const descMaxWidth = partW - 4;
 
         if (inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
@@ -264,16 +271,13 @@ async function generateInvoicePDF(inv, settings, action) {
                 doc.setFontSize(9);
                 doc.text(String(sn++), xSl + slW / 2, iy2, { align: 'center' });
 
-                // Description with wrapping
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(9);
                 let desc = item.description || svc.name || 'Service';
                 const wrappedDesc = wrapText(doc, desc, descMaxWidth);
                 
-                // Print first line
                 doc.text(wrappedDesc[0], xPart + 2, iy2);
                 
-                // If more lines, print them
                 if (wrappedDesc.length > 1) {
                     for (let j = 1; j < Math.min(wrappedDesc.length, 2); j++) {
                         iy2 += 3.5;
@@ -281,7 +285,6 @@ async function generateInvoicePDF(inv, settings, action) {
                     }
                 }
 
-                // Extra details (wrapped)
                 if (item.details && item.details.trim()) {
                     iy2 += 3.5;
                     doc.setFont('helvetica', 'normal');
@@ -378,23 +381,20 @@ async function generateInvoicePDF(inv, settings, action) {
             }
         }
 
+        // ⭐ ROUND OFF (Fixed — no "Less", show + or - sign)
         if (inv.round_off && inv.round_off !== 0) {
             iy2 += 1;
-            doc.setFont('helvetica', 'normal');
-            doc.text('Less :', xPart + 2, iy2);
             doc.setFont('helvetica', 'bold');
-            doc.text('ROUND OFF', xPart + 14, iy2);
-            const roText = inv.round_off < 0 ? '(-)' + Math.abs(inv.round_off).toFixed(2) : formatNum(inv.round_off);
+            doc.setFontSize(9);
+            doc.text('ROUND OFF', xPart + 2, iy2);
+            
+            // Show + or - sign before amount
+            const roVal = parseFloat(inv.round_off);
+            const roText = roVal >= 0 
+                ? '(+) ' + Math.abs(roVal).toFixed(2)
+                : '(-) ' + Math.abs(roVal).toFixed(2);
+            
             doc.text(roText, RE - 2, iy2, { align: 'right' });
-            iy2 += 5;
-        }
-
-        if (inv.discount && inv.discount > 0) {
-            doc.setFont('helvetica', 'normal');
-            doc.text('Less :', xPart + 2, iy2);
-            doc.setFont('helvetica', 'bold');
-            doc.text('DISCOUNT', xPart + 14, iy2);
-            doc.text('(-)' + formatNum(inv.discount), RE - 2, iy2, { align: 'right' });
             iy2 += 5;
         }
 
@@ -424,7 +424,7 @@ async function generateInvoicePDF(inv, settings, action) {
         doc.text('Rs.' + formatNum(grandT), RE - 2, y + 4, { align: 'right' });
         y += tH;
 
-        // AMOUNT IN WORDS (wrapped)
+        // AMOUNT IN WORDS
         const wH = 7;
         box(ML, y, CW, wH);
         doc.setFontSize(8.5);
@@ -457,7 +457,6 @@ async function generateInvoicePDF(inv, settings, action) {
             const isExport = inv.gst_type === 'EXPORT';
             const dataH = 5;
 
-            // Group by HSN
             const hsnGroups = {};
             if (inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
                 for (let i = 0; i < inv.items.length; i++) {
