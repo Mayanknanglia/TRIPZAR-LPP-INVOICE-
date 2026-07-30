@@ -1,11 +1,23 @@
 /* =============================================
-   ITINERARY BUILDER v1.0
+   ITINERARY BUILDER v1.2 (Utils Matched)
    Professional Tour Itinerary + Quotation
    ============================================= */
 
+// ─── Helper: formatAmount alias for formatCurrency ───
+function formatAmount(num) {
+    return parseFloat(num || 0).toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+// ─── Helper: getTodayDate alias ───
+function getTodayDate() {
+    return getTodayISO();
+}
+
 const Itinerary = {
 
-    currentItinerary: null,
     editingId: null,
     _lastSavedId: null,
 
@@ -340,7 +352,7 @@ const Itinerary = {
 
             <div class="itin-form-grid">
 
-                <!-- ── LEFT COLUMN ── -->
+                <!-- LEFT COLUMN -->
                 <div class="itin-form-left">
 
                     <!-- BASIC INFO -->
@@ -359,7 +371,7 @@ const Itinerary = {
                             <div class="form-group">
                                 <label>Date</label>
                                 <input type="date" id="itinDate" 
-                                       value="${existing?.itin_date || getTodayDate()}" 
+                                       value="${existing?.itin_date || getTodayISO()}" 
                                        class="form-control" />
                             </div>
                             <div class="form-group">
@@ -461,39 +473,25 @@ const Itinerary = {
                                 <select id="itinTourType" class="form-control">
                                     <option value="Domestic" 
                                         ${existing?.tour_type==='Domestic'||!existing 
-                                            ? 'selected':''}>
-                                        🇮🇳 Domestic
-                                    </option>
+                                            ? 'selected':''}>🇮🇳 Domestic</option>
                                     <option value="International" 
                                         ${existing?.tour_type==='International' 
-                                            ? 'selected':''}>
-                                        🌍 International
-                                    </option>
+                                            ? 'selected':''}>🌍 International</option>
                                     <option value="Pilgrimage" 
                                         ${existing?.tour_type==='Pilgrimage' 
-                                            ? 'selected':''}>
-                                        🛕 Pilgrimage
-                                    </option>
+                                            ? 'selected':''}>🛕 Pilgrimage</option>
                                     <option value="Adventure" 
                                         ${existing?.tour_type==='Adventure' 
-                                            ? 'selected':''}>
-                                        🏔️ Adventure
-                                    </option>
+                                            ? 'selected':''}>🏔️ Adventure</option>
                                     <option value="Honeymoon" 
                                         ${existing?.tour_type==='Honeymoon' 
-                                            ? 'selected':''}>
-                                        💑 Honeymoon
-                                    </option>
+                                            ? 'selected':''}>💑 Honeymoon</option>
                                     <option value="Family" 
                                         ${existing?.tour_type==='Family' 
-                                            ? 'selected':''}>
-                                        👨‍👩‍👧‍👦 Family
-                                    </option>
+                                            ? 'selected':''}>👨‍👩‍👧‍👦 Family</option>
                                     <option value="Corporate" 
                                         ${existing?.tour_type==='Corporate' 
-                                            ? 'selected':''}>
-                                        💼 Corporate
-                                    </option>
+                                            ? 'selected':''}>💼 Corporate</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -584,19 +582,17 @@ const Itinerary = {
                             <label>✅ Inclusions (one per line)</label>
                             <textarea id="itinInclusions" 
                                       class="form-control" rows="6"
-                                      placeholder="Return Airfare&#10;Hotel Accommodation&#10;Daily Breakfast&#10;All Transfers&#10;Sightseeing as per Itinerary"
                             >${existing?.inclusions || this.getDefaultInclusions()}</textarea>
                         </div>
                         <div class="form-group">
                             <label>❌ Exclusions (one per line)</label>
                             <textarea id="itinExclusions" 
                                       class="form-control" rows="5"
-                                      placeholder="Personal Expenses&#10;Travel Insurance&#10;Extra Meals"
                             >${existing?.exclusions || this.getDefaultExclusions()}</textarea>
                         </div>
                     </div>
 
-                    <!-- TERMS & CONDITIONS -->
+                    <!-- TERMS -->
                     <div class="card itin-section">
                         <div class="itin-section-title">
                             <span class="material-icons-round">gavel</span>
@@ -615,14 +611,13 @@ const Itinerary = {
                             </label>
                             <textarea id="itinNotes" 
                                       class="form-control" rows="3"
-                                      placeholder="Internal notes..."
                             >${existing?.notes || ''}</textarea>
                         </div>
                     </div>
 
                 </div>
 
-                <!-- ── RIGHT COLUMN — PRICING ── -->
+                <!-- RIGHT COLUMN — PRICING -->
                 <div class="itin-form-right">
                     <div class="card itin-section itin-pricing-card" 
                          style="position:sticky;top:80px">
@@ -632,17 +627,12 @@ const Itinerary = {
                             Price Breakdown
                         </div>
 
-                        <!-- Cost Items Header -->
                         <div class="itin-cost-header">
                             <span style="flex:1;font-size:11px;
-                                         color:var(--text-muted);font-weight:600">
-                                ITEM
-                            </span>
+                                         color:var(--text-muted);font-weight:600">ITEM</span>
                             <span style="width:100px;font-size:11px;
                                          color:var(--text-muted);font-weight:600;
-                                         text-align:right">
-                                AMOUNT (₹)
-                            </span>
+                                         text-align:right">AMOUNT (₹)</span>
                             <span style="width:30px"></span>
                         </div>
 
@@ -662,7 +652,6 @@ const Itinerary = {
 
                         <div class="itin-pricing-divider"></div>
 
-                        <!-- GST Toggle -->
                         <div class="itin-gst-row">
                             <label class="toggle-label">
                                 <input type="checkbox" id="itinGSTEnabled" 
@@ -687,7 +676,6 @@ const Itinerary = {
                             </select>
                         </div>
 
-                        <!-- Discount -->
                         <div class="form-group" style="margin-top:12px">
                             <label>Discount (₹)</label>
                             <input type="number" id="itinDiscount" 
@@ -696,7 +684,6 @@ const Itinerary = {
                                    oninput="Itinerary.calculateTotal()" />
                         </div>
 
-                        <!-- Totals Box -->
                         <div class="itin-totals-box">
                             <div class="itin-total-row">
                                 <span>Subtotal</span>
@@ -722,7 +709,6 @@ const Itinerary = {
                             </div>
                         </div>
 
-                        <!-- Payment Terms -->
                         <div class="form-group" style="margin-top:16px">
                             <label>Payment Terms</label>
                             <select id="itinPaymentTerms" class="form-control">
@@ -744,27 +730,19 @@ const Itinerary = {
                                         ? 'selected':''}>
                                     25% + 75% Before Departure
                                 </option>
-                                <option value="custom"
-                                    ${existing?.payment_terms==='custom' 
-                                        ? 'selected':''}>
-                                    Custom
-                                </option>
                             </select>
                         </div>
 
-                        <!-- Action Buttons -->
                         <div class="itin-form-actions">
                             <button class="btn btn-outline" 
                                     onclick="Itinerary.saveDraft()" 
                                     style="flex:1">
-                                <span class="material-icons-round">save</span> 
-                                Draft
+                                <span class="material-icons-round">save</span> Draft
                             </button>
                             <button class="btn btn-primary" 
                                     onclick="Itinerary.saveItinerary()" 
                                     style="flex:2">
-                                <span class="material-icons-round">check_circle</span> 
-                                Save
+                                <span class="material-icons-round">check_circle</span> Save
                             </button>
                         </div>
 
@@ -774,7 +752,6 @@ const Itinerary = {
             </div>
         `;
 
-        // Calculate totals after DOM ready
         setTimeout(() => this.calculateTotal(), 150);
     },
 
@@ -805,7 +782,7 @@ const Itinerary = {
                 </div>
                 <textarea class="form-control itin-day-activities" 
                           rows="3"
-                          placeholder="Activities for this day (one per line):&#10;• Visit Burj Khalifa&#10;• Dubai Mall Shopping&#10;• Desert Safari"
+                          placeholder="Activities for this day (one per line):&#10;Visit Burj Khalifa&#10;Dubai Mall Shopping&#10;Desert Safari"
                 >${this.escHtml(day.activities || '')}</textarea>
             </div>
         `;
@@ -824,7 +801,6 @@ const Itinerary = {
     removeDay(idx) {
         const row = document.getElementById(`day-row-${idx}`);
         if (row) row.remove();
-        // Renumber
         document.querySelectorAll('.itin-day-row').forEach((row, i) => {
             row.id = `day-row-${i}`;
             const badge = row.querySelector('.itin-day-badge');
@@ -992,13 +968,13 @@ const Itinerary = {
     },
 
     // ============================================
-    // COLLECT + SAVE
+    // SAVE
     // ============================================
     collectFormData(statusOverride = null) {
         const totals = this.calculateTotal();
         return {
             itin_number: document.getElementById('itinNumber')?.value?.trim() || '',
-            itin_date: document.getElementById('itinDate')?.value || getTodayDate(),
+            itin_date: document.getElementById('itinDate')?.value || getTodayISO(),
             valid_till: document.getElementById('itinValidTill')?.value || '',
             status: statusOverride || 
                     document.getElementById('itinStatus')?.value || 'draft',
@@ -1075,7 +1051,6 @@ const Itinerary = {
             this._lastSavedId = saved.id;
             this.editingId = saved.id;
         }
-        // Firebase sync
         if (typeof FirebaseSync !== 'undefined' && 
             typeof FirebaseSync.syncItineraries === 'function') {
             FirebaseSync.syncItineraries();
@@ -1090,11 +1065,8 @@ const Itinerary = {
         if (!itin) { this.render(); return; }
 
         const statusColors = {
-            draft:     '#64748b',
-            sent:      '#d97706',
-            confirmed: '#16a34a',
-            cancelled: '#dc2626',
-            converted: '#7c3aed'
+            draft:'#64748b', sent:'#d97706', confirmed:'#16a34a',
+            cancelled:'#dc2626', converted:'#7c3aed'
         };
         const sColor = statusColors[itin.status] || '#64748b';
         const nights = itin.nights || 0;
@@ -1143,37 +1115,24 @@ const Itinerary = {
                             onclick="Itinerary.convertToInvoice('${itin.id}')">
                         <span class="material-icons-round">receipt_long</span> 
                         Convert to Invoice
-                    </button>` : `
-                    <button class="btn btn-outline" disabled 
-                            style="opacity:0.6;cursor:not-allowed">
-                        <span class="material-icons-round">check_circle</span> 
-                        Already Converted
-                    </button>`}
+                    </button>` : ''}
                 </div>
             </div>
 
-            <!-- Summary -->
             <div class="card" style="margin-bottom:16px">
                 <div class="itin-detail-row">
                     <div class="itin-detail-item">
                         <span class="detail-label">Customer</span>
-                        <span class="detail-value">
-                            ${itin.customer_name || 'Walk-in'}
-                        </span>
+                        <span class="detail-value">${itin.customer_name || 'Walk-in'}</span>
                         ${itin.customer_phone ? `
-                        <span style="font-size:12px;color:var(--text-muted)">
-                            📞 ${itin.customer_phone}
-                        </span>` : ''}
+                        <span style="font-size:12px;color:var(--text-muted)">📞 ${itin.customer_phone}</span>` : ''}
                     </div>
                     <div class="itin-detail-item">
                         <span class="detail-label">Destination</span>
-                        <span class="detail-value" 
-                              style="color:#1a5632;font-size:16px">
+                        <span class="detail-value" style="color:#1a5632;font-size:16px">
                             📍 ${itin.destination || 'N/A'}
                         </span>
-                        <span style="font-size:12px;color:var(--text-muted)">
-                            ${itin.tour_type || ''}
-                        </span>
+                        <span style="font-size:12px;color:var(--text-muted)">${itin.tour_type || ''}</span>
                     </div>
                     <div class="itin-detail-item">
                         <span class="detail-label">Travel Date</span>
@@ -1181,26 +1140,18 @@ const Itinerary = {
                             ${itin.travel_date ? formatDate(itin.travel_date) : 'TBD'}
                         </span>
                         ${itin.return_date ? `
-                        <span style="font-size:12px;color:var(--text-muted)">
-                            Return: ${formatDate(itin.return_date)}
-                        </span>` : ''}
+                        <span style="font-size:12px;color:var(--text-muted)">Return: ${formatDate(itin.return_date)}</span>` : ''}
                     </div>
                     <div class="itin-detail-item">
                         <span class="detail-label">Duration</span>
-                        <span class="detail-value">
-                            ${nights}N / ${days}D
-                        </span>
+                        <span class="detail-value">${nights}N / ${days}D</span>
                         ${itin.hotel ? `
-                        <span style="font-size:12px;color:var(--text-muted)">
-                            🏨 ${itin.hotel}
-                        </span>` : ''}
+                        <span style="font-size:12px;color:var(--text-muted)">🏨 ${itin.hotel}</span>` : ''}
                     </div>
                     <div class="itin-detail-item">
                         <span class="detail-label">Passengers</span>
                         <span class="detail-value">
-                            ${itin.adults || 0} Adults + 
-                            ${itin.children || 0} Children + 
-                            ${itin.infants || 0} Infants
+                            ${itin.adults || 0}A + ${itin.children || 0}C + ${itin.infants || 0}I
                         </span>
                     </div>
                     <div class="itin-detail-item">
@@ -1218,7 +1169,6 @@ const Itinerary = {
 
             <div class="itin-detail-grid">
 
-                <!-- Day-wise -->
                 ${itin.days && itin.days.length > 0 ? `
                 <div class="card">
                     <div class="itin-section-title">
@@ -1230,54 +1180,40 @@ const Itinerary = {
                             <div class="itin-day-view-row">
                                 <div class="itin-day-view-badge">Day ${d.day}</div>
                                 <div class="itin-day-view-content">
-                                    ${d.title ? `
-                                    <div class="itin-day-view-title">
-                                        ${d.title}
-                                    </div>` : ''}
-                                    ${d.activities ? `
-                                    <div class="itin-day-view-activities">
-                                        ${d.activities.replace(/\n/g,'<br>')}
-                                    </div>` : ''}
+                                    ${d.title ? `<div class="itin-day-view-title">${d.title}</div>` : ''}
+                                    ${d.activities ? `<div class="itin-day-view-activities">${d.activities.replace(/\n/g,'<br>')}</div>` : ''}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
                 </div>` : ''}
 
-                <!-- Inclusions / Exclusions -->
                 ${(itin.inclusions || itin.exclusions) ? `
                 <div class="itin-inc-exc-grid">
                     ${itin.inclusions ? `
                     <div class="card">
                         <div class="itin-section-title" style="color:#16a34a">
-                            <span class="material-icons-round" 
-                                  style="color:#16a34a">check_circle</span>
+                            <span class="material-icons-round" style="color:#16a34a">check_circle</span>
                             Inclusions
                         </div>
                         <ul class="itin-list-ul incl">
-                            ${itin.inclusions.split('\n')
-                                .filter(l=>l.trim())
-                                .map(l=>`<li>${l.replace(/^[✓✅•\-\*]\s*/,'')}</li>`)
-                                .join('')}
+                            ${itin.inclusions.split('\n').filter(l=>l.trim())
+                                .map(l=>`<li>${l.replace(/^[✓✅•\-\*]\s*/,'')}</li>`).join('')}
                         </ul>
                     </div>` : ''}
                     ${itin.exclusions ? `
                     <div class="card">
                         <div class="itin-section-title" style="color:#dc2626">
-                            <span class="material-icons-round" 
-                                  style="color:#dc2626">cancel</span>
+                            <span class="material-icons-round" style="color:#dc2626">cancel</span>
                             Exclusions
                         </div>
                         <ul class="itin-list-ul excl">
-                            ${itin.exclusions.split('\n')
-                                .filter(l=>l.trim())
-                                .map(l=>`<li>${l.replace(/^[✗❌•\-\*]\s*/,'')}</li>`)
-                                .join('')}
+                            ${itin.exclusions.split('\n').filter(l=>l.trim())
+                                .map(l=>`<li>${l.replace(/^[✗❌•\-\*]\s*/,'')}</li>`).join('')}
                         </ul>
                     </div>` : ''}
                 </div>` : ''}
 
-                <!-- Price Breakdown -->
                 <div class="card">
                     <div class="itin-section-title">
                         <span class="material-icons-round">currency_rupee</span>
@@ -1302,32 +1238,22 @@ const Itinerary = {
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td style="color:var(--text-muted)">Subtotal</td>
-                                <td style="text-align:right">
-                                    ₹${formatAmount(itin.subtotal || 0)}
-                                </td>
+                                <td>Subtotal</td>
+                                <td style="text-align:right">₹${formatAmount(itin.subtotal || 0)}</td>
                             </tr>
                             ${itin.discount > 0 ? `
                             <tr style="color:#dc2626">
                                 <td>Discount</td>
-                                <td style="text-align:right">
-                                    -₹${formatAmount(itin.discount)}
-                                </td>
+                                <td style="text-align:right">-₹${formatAmount(itin.discount)}</td>
                             </tr>` : ''}
                             ${itin.gst_enabled ? `
                             <tr>
-                                <td style="color:var(--text-muted)">
-                                    GST (${itin.gst_rate}%)
-                                </td>
-                                <td style="text-align:right">
-                                    ₹${formatAmount(itin.gst_amount || 0)}
-                                </td>
+                                <td>GST (${itin.gst_rate}%)</td>
+                                <td style="text-align:right">₹${formatAmount(itin.gst_amount || 0)}</td>
                             </tr>` : ''}
                             <tr class="grand-total-row">
                                 <td>GRAND TOTAL</td>
-                                <td style="text-align:right">
-                                    ₹${formatAmount(itin.grand_total || 0)}
-                                </td>
+                                <td style="text-align:right">₹${formatAmount(itin.grand_total || 0)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -1337,7 +1263,6 @@ const Itinerary = {
                     </div>` : ''}
                 </div>
 
-                <!-- Terms -->
                 ${itin.terms ? `
                 <div class="card">
                     <div class="itin-section-title">
@@ -1367,13 +1292,11 @@ const Itinerary = {
             `Amount: ₹${formatAmount(itin.grand_total || 0)}`
         )) return;
 
-        // Mark as converted
         DB.updateItinerary(id, {
             status: 'converted',
             converted_at: new Date().toISOString()
         });
 
-        // Store data for invoice form
         window._itinToInvoice = {
             customer_id: itin.customer_id || '',
             customer_name: itin.customer_name || '',
@@ -1391,9 +1314,7 @@ const Itinerary = {
             description: `Tour Package: ${itin.destination} ` +
                 `(${itin.nights || 0}N/${itin.nights ? parseInt(itin.nights)+1:0}D)\n` +
                 `Travel Date: ${itin.travel_date ? formatDate(itin.travel_date) : 'TBD'}\n` +
-                `Pax: ${itin.adults||0} Adults + ` +
-                `${itin.children||0} Children + ` +
-                `${itin.infants||0} Infants`
+                `Pax: ${itin.adults||0}A + ${itin.children||0}C + ${itin.infants||0}I`
         };
 
         showToast('✅ Data transferred! Fill invoice details.', 'success');
@@ -1407,10 +1328,7 @@ const Itinerary = {
         const itin = DB.getItineraryById(id);
         if (!itin) return;
 
-        if (!confirmDialog(
-            `Duplicate itinerary "${itin.itin_number}"?\n` +
-            `A new draft will be created.`
-        )) return;
+        if (!confirmDialog(`Duplicate itinerary "${itin.itin_number}"?`)) return;
 
         const newData = { ...itin };
         delete newData.id;
@@ -1420,7 +1338,7 @@ const Itinerary = {
 
         newData.itin_number = DB.getNextItinNumber();
         newData.status = 'draft';
-        newData.itin_date = getTodayDate();
+        newData.itin_date = getTodayISO();
 
         const saved = DB.addItinerary(newData);
         showToast('✅ Itinerary duplicated!', 'success');
@@ -1434,10 +1352,7 @@ const Itinerary = {
         const itin = DB.getItineraryById(id);
         if (!itin) return;
 
-        if (!confirmDialog(
-            `Delete itinerary "${itin.itin_number}"?\n` +
-            `This cannot be undone.`
-        )) return;
+        if (!confirmDialog(`Delete itinerary "${itin.itin_number}"?\nThis cannot be undone.`)) return;
 
         DB.deleteItinerary(id);
         showToast('🗑️ Itinerary deleted', 'info');
@@ -1445,7 +1360,7 @@ const Itinerary = {
     },
 
     // ============================================
-    // WHATSAPP SHARE
+    // WHATSAPP
     // ============================================
     shareWhatsApp(id) {
         const itin = DB.getItineraryById(id);
@@ -1466,10 +1381,10 @@ Thank you for your interest! Here is your personalized tour quotation:
 
 📍 *Destination:* ${itin.destination || 'N/A'}
 🏷️ *Tour Type:* ${itin.tour_type || 'N/A'}
-🗓️ *Travel Date:* ${itin.travel_date ? formatDate(itin.travel_date) : 'To be decided'}
+🗓️ *Travel Date:* ${itin.travel_date ? formatDate(itin.travel_date) : 'TBD'}
 🌙 *Duration:* ${nights} Nights / ${days} Days
 🏨 *Hotel:* ${itin.hotel || 'As per itinerary'}
-👥 *Pax:* ${itin.adults||0} Adult(s) + ${itin.children||0} Child(ren) + ${itin.infants||0} Infant(s)
+👥 *Pax:* ${itin.adults||0}A + ${itin.children||0}C + ${itin.infants||0}I
 
 💰 *Package Cost: ₹${formatAmount(itin.grand_total || 0)}*
 ${itin.gst_enabled ? `_(Inclusive of GST @ ${itin.gst_rate}%)_\n` : ''}
@@ -1490,12 +1405,11 @@ _✈️ Explore Beyond Ordinary_`;
         const url = phone
             ? `https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`
             : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-
         window.open(url, '_blank');
     },
 
     // ============================================
-    // EMAIL SHARE
+    // EMAIL
     // ============================================
     shareEmail(id) {
         const itin = DB.getItineraryById(id);
@@ -1505,7 +1419,7 @@ _✈️ Explore Beyond Ordinary_`;
         const nights = itin.nights || 0;
         const days = nights ? parseInt(nights) + 1 : 0;
 
-        const subject = `Tour Quotation - ${itin.destination} | ${itin.itin_number} | ${settings.company_name}`;
+        const subject = `Tour Quotation - ${itin.destination} | ${itin.itin_number}`;
         const body =
 `Dear ${itin.customer_name || 'Sir/Ma\'am'},
 
@@ -1528,8 +1442,6 @@ Valid Till : ${itin.valid_till ? formatDate(itin.valid_till) : 'N/A'}
 Payment    : ${itin.payment_terms || '50% advance required'}
 
 Please find the detailed itinerary PDF attached.
-
-For any queries, feel free to contact us.
 
 Warm Regards,
 ${settings.company_name}
