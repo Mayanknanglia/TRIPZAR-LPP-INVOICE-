@@ -1,5 +1,5 @@
 /* =============================================
-   GOOGLE DRIVE v3.2 - CORS FIXED + AUTO-SAVE
+   GOOGLE DRIVE v3.3 - CORS FIXED + AUTO-SAVE + PURCHASE BILLS
    ============================================= */
 
 const Drive = {
@@ -264,6 +264,110 @@ const Drive = {
     },
 
     // ============================================
+    // ⭐ NEW: PURCHASE BILL UPLOAD (Storage Safe)
+    // Uploads PDF/Image to "Purchase Bills" folder
+    // Returns { success, url, fileId, fileName }
+    // ============================================
+    async uploadPurchaseBill(fileObject, customFileName) {
+        if (!fileObject) {
+            throw new Error('No file provided');
+        }
+
+        if (!this.isConfigured()) {
+            throw new Error('Google Drive not configured. Go to Settings → Drive.');
+        }
+
+        console.log('📤 Uploading purchase bill to Drive:', fileObject.name, (fileObject.size / 1024).toFixed(1) + 'KB');
+
+        try {
+            let base64Data = '';
+            let mimeType = fileObject.type || 'application/octet-stream';
+
+            // Compress images (keep PDFs as-is)
+            if (mimeType.startsWith('image/')) {
+                base64Data = await this.compressImageToBase64(fileObject, 1400, 0.75);
+                mimeType = 'image/jpeg';
+            } else {
+                const fullBase64 = await this.blobToBase64(fileObject);
+                base64Data = fullBase64.includes(',') ? fullBase64.split(',')[1] : fullBase64;
+            }
+
+            const fileName = customFileName ||
+                `BILL_${Date.now()}_${(fileObject.name || 'file').replace(/[^a-zA-Z0-9.]/g, '_')}`;
+
+            // Try purchase-bill specific action first, fallback to generic upload
+            let result = await this.callScript({
+                action: 'upload_purchase_bill',
+                filename: fileName,
+                fileBase64: base64Data,
+                pdfBase64: base64Data,       // fallback key some scripts use
+                mimeType: mimeType,
+                folderName: 'Purchase Bills'
+            });
+
+            // Fallback: if Apps Script doesn't know upload_purchase_bill, try uploadFile / upload_file
+            if (!result || (!result.success && !result.fileUrl && !result.viewUrl && !result.url)) {
+                console.log('Trying fallback upload action...');
+                result = await this.callScript({
+                    action: 'upload_file',
+                    filename: fileName,
+                    fileBase64: base64Data,
+                    pdfBase64: base64Data,
+                    mimeType: mimeType,
+                    folderName: 'Purchase Bills'
+                });
+            }
+
+            // Normalize response
+            if (result && (result.success || result.fileUrl || result.viewUrl || result.url)) {
+                const url = result.viewUrl || result.fileUrl || result.url || '';
+                const fileId = result.fileId || result.id || null;
+                console.log('✅ Purchase bill uploaded:', url);
+                return {
+                    success: true,
+                    url: url,
+                    fileId: fileId,
+                    fileName: result.fileName || fileName,
+                    viewUrl: url
+                };
+            }
+
+            throw new Error(result?.error || result?.message || 'Drive upload failed — no URL returned');
+        } catch (error) {
+            console.error('uploadPurchaseBill error:', error);
+            throw error;
+        }
+    },
+
+    // Compress image via canvas before Drive upload
+    compressImageToBase64(file, maxWidth = 1400, quality = 0.75) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve(dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl);
+                };
+                img.onerror = reject;
+                img.src = event.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    },
+
+    // ============================================
     // ⭐ CORS FIX: URL-encoded form data
     // Content-Type: application/x-www-form-urlencoded 
     // = "Simple Request" = No CORS preflight
@@ -402,6 +506,17 @@ const Drive = {
     }
 };
 
+// ============================================
+// ⭐ GLOBAL HELPER — used by purchases.js
+// ============================================
+async function uploadBillToDrive(fileObject, customFileName) {
+    // Ensure Drive is initialized
+    if (!Drive.SCRIPT_URL) {
+        Drive.init();
+    }
+    return await Drive.uploadPurchaseBill(fileObject, customFileName);
+}
+
 function copyToClipboard(text) {
     if (navigator.clipboard && text) {
         navigator.clipboard.writeText(text).then(function() {
@@ -409,3 +524,7 @@ function copyToClipboard(text) {
         });
     }
 }
+
+// Make globals
+window.Drive = Drive;
+window.uploadBillToDrive = uploadBillToDrive;
