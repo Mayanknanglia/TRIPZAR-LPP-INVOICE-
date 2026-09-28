@@ -720,3 +720,59 @@ if (document.readyState === 'loading') {
 } else {
     if (document.getElementById('purchaseTableBody')) initPurchasesPage();
 }
+/* ==============================================================
+   MAGIC HTML INJECTOR - FIXES BLANK SCREEN
+   ============================================================== */
+
+// DHYAN DEIN: Agar aapke system mein sidebar pe click karne se 'renderPurchases', 
+// 'showPurchases' ya koi aur function call hota hai, toh is 'loadPurchases' ka 
+// naam badal kar wahi rakh dijiye.
+function loadPurchases() {
+    
+    // Aapke main white area ka ID (Jyada tar 'mainContent' ya 'content' hota hai)
+    // Agar aapka ID alag hai, toh 'mainContent' ki jagah wo daal dein.
+    const container = document.getElementById('mainContent') || document.querySelector('.content') || document.querySelector('main');
+    
+    if (container) {
+        // Pura HTML Dhancha banakar container me daal rahe hain
+        container.innerHTML = `
+            <div id="purchaseListSection" class="w-full">
+                <div id="purchaseStats"></div>
+                <div id="purchaseFilters"></div>
+                
+                <div class="bg-white rounded-xl shadow overflow-x-auto border border-gray-100 mt-4">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">#</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Bill No</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Supplier</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Category</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Amount</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="purchaseTableBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+                
+                <div id="purchasePagination" class="mt-4"></div>
+            </div>
+            
+            <!-- Premium View Section -->
+            <div id="purchaseViewSection" class="hidden w-full"></div>
+        `;
+
+        // Ab naye code ko bolenge ki is HTML ke andar data bharna shuru karo
+        initPurchasesPage();
+    } else {
+        console.error("Main container nahi mila! Kripya apna container ID check karein.");
+    }
+}
+
+// Support for other common function names automatically
+window.renderPurchases = loadPurchases;
+window.showPurchases = loadPurchases;
+window.openPurchases = loadPurchases;
