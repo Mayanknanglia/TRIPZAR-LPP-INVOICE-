@@ -300,7 +300,42 @@
                 <div id="page-newInvoice"   class="page"></div>
                 <div id="page-customers"    class="page"></div>
                 <div id="page-itinerary"    class="page"></div>
-                <div id="page-purchases"    class="page"></div>
+                
+                <!-- ⭐ PURCHASES PAGE - PREMIUM STRUCTURE ADDED -->
+                <div id="page-purchases" class="page">
+                    <div id="purchaseListSection" class="w-full p-4">
+                        <!-- Stats & Filters (Auto-injected by JS) -->
+                        <div id="purchaseStats"></div>
+                        <div id="purchaseFilters"></div>
+                        
+                        <!-- Purchase Bills Table -->
+                        <div class="bg-white rounded-xl shadow overflow-x-auto border border-gray-100 mt-4">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">#</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Bill No</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Date</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Supplier</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Category</th>
+                                        <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Amount</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="purchaseTableBody" class="divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination Controls -->
+                        <div id="purchasePagination" class="mt-4"></div>
+                    </div>
+
+                    <!-- Premium Purchase View Section (Hidden by default) -->
+                    <div id="purchaseViewSection" class="hidden w-full p-4"></div>
+                </div>
+                <!-- END PURCHASES PAGE -->
+                
                 <div id="page-newPurchase"  class="page"></div>
                 <div id="page-suppliers"    class="page"></div>
                 <div id="page-purchaseView" class="page"></div>
@@ -341,11 +376,11 @@
     <script src="js/customers.js"></script>
     <script src="js/invoices.js"></script>
     <script src="js/suppliers.js"></script>
+    <script src="js/drive.js"></script>
     <script src="js/purchases.js"></script>
     <script src="js/reports.js"></script>
     <script src="js/gst-reports.js"></script>
     <script src="js/settings.js"></script>
-    <script src="js/drive.js"></script>
     <script src="js/whatsapp.js"></script>
     <script src="js/email.js"></script>
     <script src="js/itinerary.js"></script>
