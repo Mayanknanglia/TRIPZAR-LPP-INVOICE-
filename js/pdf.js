@@ -1,5 +1,5 @@
 /* =============================================
-   PDF v20 - Buyer GST Display Fixed & Box Resized
+   PDF v21 - SMART GST AUTO-FETCH FROM CUSTOMER DB
    ============================================= */
 
 function downloadInvoicePDF(invoiceId) {
@@ -58,6 +58,19 @@ async function generateInvoicePDF(inv, settings, action) {
         const MR = 10;
         const CW = PW - ML - MR;
         const RE = PW - MR;
+
+        // ⭐ SMART GST AUTO-FETCH LOGIC (If missing in old invoice)
+        let custGst = (inv.customer_gst || '').trim();
+        if (!custGst && typeof DB !== 'undefined') {
+            if (inv.customer_id && DB.getCustomerById) {
+                const cust = DB.getCustomerById(inv.customer_id);
+                if (cust && cust.gst_no) custGst = cust.gst_no.trim();
+            }
+            if (!custGst && DB.getCustomers) {
+                const cust = DB.getCustomers().find(c => c.name && c.name.trim().toLowerCase() === (inv.customer_name || '').trim().toLowerCase());
+                if (cust && cust.gst_no) custGst = cust.gst_no.trim();
+            }
+        }
 
         doc.setDrawColor(0);
         doc.setLineWidth(0.25);
@@ -141,17 +154,16 @@ async function generateInvoicePDF(inv, settings, action) {
         y += cH;
 
         // ==========================================
-        // BUYER + INVOICE (Fixed Box Height for GST)
+        // BUYER + INVOICE (With Smart GST Auto-Height)
         // ==========================================
         let addressLineCount = inv.customer_address ? wrapText(doc, toProperCase(inv.customer_address), (CW - 75) - 4).length : 0;
-        addressLineCount = Math.min(addressLineCount, 2); // max 2 lines
+        addressLineCount = Math.min(addressLineCount, 2);
         
-        // Calculate dynamic height required to fit everything perfectly
         let extraLines = addressLineCount;
         if (inv.customer_city) extraLines += 1;
-        if (inv.customer_gst) extraLines += 1;
+        if (custGst) extraLines += 1; // Dynamic check
         
-        const bH = 26 + (extraLines * 3.5); // Dynamic Box Height!
+        const bH = 26 + (extraLines * 3.5);
         
         const iW = 75;
         const bW = CW - iW;
@@ -162,7 +174,7 @@ async function generateInvoicePDF(inv, settings, action) {
         doc.setFontSize(8.5);
         doc.setFont('helvetica', 'bold');
         doc.text('Buyer (Bill to)', ML + 2, by);
-        by += 4; // Extra gap before name
+        by += 4;
         doc.setFontSize(10);
         doc.text(fitText(doc, toProperCase(inv.customer_name || ''), bW - 4), ML + 2, by);
         by += 4.5;
@@ -189,10 +201,10 @@ async function generateInvoicePDF(inv, settings, action) {
         doc.text(fitText(doc, toProperCase(inv.customer_state || '') + ' - ' + toProperCase(inv.customer_country || 'India'), bW - 4), ML + 2, by);
         by += 3.5;
 
-        // ⭐ CUSTOMER GST PRINTS HERE 
-        if (inv.customer_gst && inv.customer_gst.trim() !== '') {
+        // ⭐ CUSTOMER GST PRINTS HERE AUTOMATICALLY
+        if (custGst) {
             doc.setFont('helvetica', 'bold');
-            doc.text('GSTIN/UIN: ' + inv.customer_gst.toUpperCase(), ML + 2, by);
+            doc.text('GSTIN/UIN:  ' + custGst.toUpperCase(), ML + 2, by);
             doc.setFont('helvetica', 'normal');
             by += 3.5;
         }
@@ -226,7 +238,7 @@ async function generateInvoicePDF(inv, settings, action) {
             doc.text(fitText(doc, inv.payment_mode, iW - 4), ix, iy);
         }
         
-        y += bH; // Shift Y down by the dynamic box height
+        y += bH;
 
         // ==========================================
         // ITEMS TABLE HEADER
@@ -368,7 +380,7 @@ async function generateInvoicePDF(inv, settings, action) {
             }
         }
 
-        // ⭐ ROUND OFF (Fixed)
+        // ⭐ ROUND OFF
         if (inv.round_off && inv.round_off !== 0) {
             iy2 += 1;
             doc.setFont('helvetica', 'bold');
