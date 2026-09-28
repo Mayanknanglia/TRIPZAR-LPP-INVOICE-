@@ -1,5 +1,5 @@
 /* =============================================
-   PDF v19 - Round Off Fixed (Add/Less with signs)
+   PDF v20 - Buyer GST Display Fixed & Box Resized
    ============================================= */
 
 function downloadInvoicePDF(invoiceId) {
@@ -99,13 +99,13 @@ async function generateInvoicePDF(inv, settings, action) {
         if (addr.line2) { doc.text(addr.line2, PW / 2, y, { align: 'center' }); y += 3.5; }
         if (addr.line3) { doc.text(addr.line3, PW / 2, y, { align: 'center' }); y += 3.5; }
         
-        // LLPIN (right below address)
+        // LLPIN
         if (settings.llpin) {
             doc.text('LLPIN:   ' + settings.llpin, PW / 2, y, { align: 'center' });
             y += 3.5;
         }
         
-        // GSTIN + PAN in same line
+        // GSTIN + PAN
         let gstinPanText = 'GSTIN/UIN:   ' + (settings.gstin || '');
         if (settings.pan) {
             gstinPanText += '     PAN:   ' + settings.pan;
@@ -140,8 +140,19 @@ async function generateInvoicePDF(inv, settings, action) {
         doc.text(fitText(doc, settings.email || '', c3 - 22), ML + c3 * 2 + 20, y + 4.5);
         y += cH;
 
-        // BUYER + INVOICE
-        const bH = inv.customer_gst ? 30 : 26;
+        // ==========================================
+        // BUYER + INVOICE (Fixed Box Height for GST)
+        // ==========================================
+        let addressLineCount = inv.customer_address ? wrapText(doc, toProperCase(inv.customer_address), (CW - 75) - 4).length : 0;
+        addressLineCount = Math.min(addressLineCount, 2); // max 2 lines
+        
+        // Calculate dynamic height required to fit everything perfectly
+        let extraLines = addressLineCount;
+        if (inv.customer_city) extraLines += 1;
+        if (inv.customer_gst) extraLines += 1;
+        
+        const bH = 26 + (extraLines * 3.5); // Dynamic Box Height!
+        
         const iW = 75;
         const bW = CW - iW;
         box(ML, y, bW, bH);
@@ -151,7 +162,7 @@ async function generateInvoicePDF(inv, settings, action) {
         doc.setFontSize(8.5);
         doc.setFont('helvetica', 'bold');
         doc.text('Buyer (Bill to)', ML + 2, by);
-        by += 3.5;
+        by += 4; // Extra gap before name
         doc.setFontSize(10);
         doc.text(fitText(doc, toProperCase(inv.customer_name || ''), bW - 4), ML + 2, by);
         by += 4.5;
@@ -166,16 +177,22 @@ async function generateInvoicePDF(inv, settings, action) {
                 by += 3.5;
             });
         }
-        if (inv.customer_city) {
-            doc.text(fitText(doc, (toProperCase(inv.customer_city) + ' ' + (inv.customer_pincode || '')).trim(), bW - 4), ML + 2, by);
+        
+        let cityStateStr = '';
+        if (inv.customer_city) cityStateStr += toProperCase(inv.customer_city) + ' ';
+        if (inv.customer_pincode) cityStateStr += inv.customer_pincode;
+        if (cityStateStr.trim()) {
+            doc.text(fitText(doc, cityStateStr.trim(), bW - 4), ML + 2, by);
             by += 3.5;
         }
+
         doc.text(fitText(doc, toProperCase(inv.customer_state || '') + ' - ' + toProperCase(inv.customer_country || 'India'), bW - 4), ML + 2, by);
         by += 3.5;
 
-        if (inv.customer_gst) {
+        // ⭐ CUSTOMER GST PRINTS HERE 
+        if (inv.customer_gst && inv.customer_gst.trim() !== '') {
             doc.setFont('helvetica', 'bold');
-            doc.text('GSTIN/UIN:  ' + inv.customer_gst, ML + 2, by);
+            doc.text('GSTIN/UIN: ' + inv.customer_gst.toUpperCase(), ML + 2, by);
             doc.setFont('helvetica', 'normal');
             by += 3.5;
         }
@@ -184,8 +201,10 @@ async function generateInvoicePDF(inv, settings, action) {
             doc.text(fitText(doc, 'State: ' + toProperCase(inv.customer_state) + '   Code: ' + (inv.customer_state_code || ''), bW - 4), ML + 2, by);
             by += 3.5;
         }
+        
         doc.text(fitText(doc, 'Place of Supply: ' + toProperCase(inv.place_of_supply || ''), bW - 4), ML + 2, by);
 
+        // INVOICE DETAILS RIGHT SIDE
         let iy = y + 3.5;
         const ix = ML + bW + 3;
         doc.setFontSize(8.5);
@@ -206,9 +225,12 @@ async function generateInvoicePDF(inv, settings, action) {
             doc.setFont('helvetica', 'bold');
             doc.text(fitText(doc, inv.payment_mode, iW - 4), ix, iy);
         }
-        y += bH;
+        
+        y += bH; // Shift Y down by the dynamic box height
 
+        // ==========================================
         // ITEMS TABLE HEADER
+        // ==========================================
         const slW = 12, partW = 78, gstW = 14, qtyW = 22, rateW = 20, perW = 12;
         const amtW = CW - slW - partW - gstW - qtyW - rateW - perW;
         const xSl = ML;
@@ -344,51 +366,15 @@ async function generateInvoicePDF(inv, settings, action) {
                 doc.text('0.00', RE - 2, iy2, { align: 'right' });
                 iy2 += 5;
             }
-        } else {
-            // Legacy format
-            if (bsf > 0) {
-                doc.setFont('helvetica', 'normal');
-                doc.text(String(sn++), xSl + slW / 2, iy2, { align: 'center' });
-                doc.setFont('helvetica', 'bold');
-                doc.text('BOOKING SERVICE FEE', xPart + 2, iy2);
-                doc.setFont('helvetica', 'normal');
-                doc.text(gstRateVal + ' %', xGst + gstW / 2, iy2, { align: 'center' });
-                doc.setFont('helvetica', 'bold');
-                doc.text(formatNum(bsf), RE - 2, iy2, { align: 'right' });
-                iy2 += 5;
-            }
-            if (hotel > 0) {
-                doc.setFont('helvetica', 'normal');
-                doc.text(String(sn++), xSl + slW / 2, iy2, { align: 'center' });
-                doc.setFont('helvetica', 'bold');
-                doc.text('HOTEL REIMBURSEMENT (Pure Agent)', xPart + 2, iy2);
-                doc.text(formatNum(hotel), RE - 2, iy2, { align: 'right' });
-                iy2 += 5;
-            }
-            if (inv.gst_type === 'CGST_SGST' && cgstA > 0) {
-                doc.setFont('helvetica', 'bold');
-                doc.text('OUTPUT C-GST', xGst - 3, iy2, { align: 'right' });
-                doc.text(formatNum(cgstA), RE - 2, iy2, { align: 'right' });
-                iy2 += 5;
-                doc.text('OUTPUT S-GST', xGst - 3, iy2, { align: 'right' });
-                doc.text(formatNum(sgstA), RE - 2, iy2, { align: 'right' });
-                iy2 += 5;
-            } else if (inv.gst_type === 'IGST' && igstA > 0) {
-                doc.setFont('helvetica', 'bold');
-                doc.text('IGST', xGst - 3, iy2, { align: 'right' });
-                doc.text(formatNum(igstA), RE - 2, iy2, { align: 'right' });
-                iy2 += 5;
-            }
         }
 
-        // ⭐ ROUND OFF (Fixed — no "Less", show + or - sign)
+        // ⭐ ROUND OFF (Fixed)
         if (inv.round_off && inv.round_off !== 0) {
             iy2 += 1;
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
             doc.text('ROUND OFF', xPart + 2, iy2);
             
-            // Show + or - sign before amount
             const roVal = parseFloat(inv.round_off);
             const roText = roVal >= 0 
                 ? '(+) ' + Math.abs(roVal).toFixed(2)
@@ -445,7 +431,7 @@ async function generateInvoicePDF(inv, settings, action) {
                          (settings.invoice_type === 'Proforma Invoice');
 
         if (!isNonTax) {
-            // TAX ANALYSIS TITLE
+            // TAX ANALYSIS
             const taxTitleH = 5;
             box(ML, y, CW, taxTitleH);
             doc.setFontSize(9);
