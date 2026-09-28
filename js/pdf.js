@@ -1,5 +1,5 @@
 /* =============================================
-   PDF v22 - SMART GST AUTO-RESOLVER & PRINT FIX
+   PDF v23 - SMART GST AUTO-RESOLVER & HEIGHT OPTIMIZED
    ============================================= */
 
 function downloadInvoicePDF(invoiceId) {
@@ -186,16 +186,30 @@ async function generateInvoicePDF(inv, settings, action) {
         y += cH;
 
         // ==========================================
-        // BUYER + INVOICE (DYNAMIC GST PRINTING)
+        // BUYER + INVOICE (DYNAMIC GST & EXACT HEIGHT)
         // ==========================================
-        let addressLineCount = inv.customer_address ? wrapText(doc, toProperCase(inv.customer_address), (CW - 75) - 4).length : 0;
-        addressLineCount = Math.min(addressLineCount, 2);
         
-        let extraLines = addressLineCount;
-        if (inv.customer_city) extraLines += 1;
-        if (custGst) extraLines += 1; // Add space for GST line
+        // 1. Calculate Exact Height Required for Buyer Details to Eliminate Empty Space
+        let textLinesHeight = 4 + 4.5; // 'Buyer (Bill to)' + Name
         
-        const bH = 28 + (extraLines * 3.5);
+        if (inv.customer_address) {
+            const wrapped = wrapText(doc, toProperCase(inv.customer_address), (CW - 75) - 4);
+            textLinesHeight += Math.min(wrapped.length, 2) * 3.5;
+        }
+        
+        let cityStateStr = '';
+        if (inv.customer_city) cityStateStr += toProperCase(inv.customer_city) + ' ';
+        if (inv.customer_pincode) cityStateStr += inv.customer_pincode;
+        if (cityStateStr.trim()) textLinesHeight += 3.5;
+
+        textLinesHeight += 3.5; // State/Country Line
+        if (custGst) textLinesHeight += 3.5; // GSTIN Line
+        if (inv.customer_state) textLinesHeight += 3.5; // State Code Line
+        textLinesHeight += 3.5; // Place of Supply Line
+        
+        // Final Box Height: Exact text height + 3.5mm padding at bottom
+        const bH = textLinesHeight + 3.5; 
+        
         const iW = 75;
         const bW = CW - iW;
 
@@ -222,9 +236,6 @@ async function generateInvoicePDF(inv, settings, action) {
             });
         }
         
-        let cityStateStr = '';
-        if (inv.customer_city) cityStateStr += toProperCase(inv.customer_city) + ' ';
-        if (inv.customer_pincode) cityStateStr += inv.customer_pincode;
         if (cityStateStr.trim()) {
             doc.text(fitText(doc, cityStateStr.trim(), bW - 4), ML + 2, by);
             by += 3.5;
