@@ -1,778 +1,613 @@
-/* =============================================================================
-   PURCHASES.JS - FINAL v5.0 (COMPLETE PRODUCTION READY)
-   Tripzar Holidays LLP - Purchase Bill Management System
-   Features:
-   - 23 Business/Travel Categories
-   - Google Drive Attachment Upload (No LocalStorage Quota Error)
-   - GST Calculations (CGST/SGST/IGST)
-   - Premium View, Add, Edit, Delete
-   - Search, Filters, Summary Stats, CSV Export, Pagination
-   ============================================================================= */
+/* =============================================
+   PURCHASES v3 - Main Amount + Service Fee (Google Drive Integrated)
+   ============================================= */
 
-// ---------- CATEGORIES (23 Total) ----------
+let purchaseSearchQuery = '';
+let purchaseFilters = { category: '', payment_status: '', financial_year: '' };
+let editingPurchaseId = null;
+
+// Attachment State
+let purchaseAttachmentFile = null;
+let existingDriveUrl = null;
+let existingAttachName = null;
+
 const PURCHASE_CATEGORIES = [
-    { key: 'FLIGHT', name: 'Flight', icon: 'fa-plane', color: 'blue' },
-    { key: 'TRAIN', name: 'Train', icon: 'fa-train', color: 'red' },
-    { key: 'BUS', name: 'Bus', icon: 'fa-bus', color: 'yellow' },
-    { key: 'TRANSPORT', name: 'Transport / Cab', icon: 'fa-taxi', color: 'orange' },
-    { key: 'HOTEL', name: 'Hotel / Accommodation', icon: 'fa-hotel', color: 'purple' },
-    { key: 'CRUISE', name: 'Cruise / Ferry', icon: 'fa-ship', color: 'cyan' },
-    { key: 'PACKAGE', name: 'Tour Package', icon: 'fa-suitcase-rolling', color: 'pink' },
-    { key: 'ACTIVITY', name: 'Activities & Sightseeing', icon: 'fa-camera', color: 'green' },
-    { key: 'VISA', name: 'Visa / Passport', icon: 'fa-passport', color: 'indigo' },
-    { key: 'INSURANCE', name: 'Insurance', icon: 'fa-shield-alt', color: 'teal' },
-    { key: 'FOREX', name: 'Forex', icon: 'fa-money-bill-wave', color: 'emerald' },
-    { key: 'GUIDE', name: 'Driver / Tour Guide', icon: 'fa-user-tie', color: 'amber' },
-    { key: 'MICE', name: 'MICE & Events', icon: 'fa-users', color: 'rose' },
-    { key: 'RENT', name: 'Office Rent', icon: 'fa-building', color: 'slate' },
-    { key: 'SALARY', name: 'Salary & Incentives', icon: 'fa-hand-holding-usd', color: 'lime' },
-    { key: 'MARKETING', name: 'Marketing & Ads', icon: 'fa-bullhorn', color: 'fuchsia' },
-    { key: 'SOFTWARE', name: 'Software & IT Services', icon: 'fa-laptop-code', color: 'sky' },
-    { key: 'UTILITIES', name: 'Utilities & Internet', icon: 'fa-wifi', color: 'violet' },
-    { key: 'LEGAL', name: 'Legal & Professional Fees', icon: 'fa-gavel', color: 'zinc' },
-    { key: 'BANK', name: 'Bank & Gateway Charges', icon: 'fa-university', color: 'stone' },
-    { key: 'OFFICE', name: 'Office Expenses & Pantry', icon: 'fa-mug-hot', color: 'orange' },
-    { key: 'REPAIR', name: 'Repair & Maintenance', icon: 'fa-tools', color: 'gray' },
-    { key: 'MISC', name: 'Miscellaneous', icon: 'fa-box', color: 'neutral' }
+    'Flight', 'Hotel', 'Transport', 'Tour Package', 'Visa/Passport',
+    'Insurance', 'Forex', 'Office Rent', 'Salary', 'Marketing',
+    'Software', 'Utilities', 'Miscellaneous'
 ];
 
-// ---------- PAGINATION STATE ----------
-let purchaseCurrentPage = 1;
-const PURCHASE_PAGE_SIZE = 15;
-let purchaseFilterState = {
-    search: '',
-    category: 'ALL',
-    status: 'ALL',
-    fy: 'ALL',
-    fromDate: '',
-    toDate: ''
-};
-
-// ==============================================================
-// MAIN INIT
-// ==============================================================
-function initPurchasesPage() {
-    renderPurchaseStats();
-    renderPurchaseFilters();
-    renderPurchaseList();
-    attachPurchaseEventListeners();
-}
-
-// ==============================================================
-// SUMMARY STATS
-// ==============================================================
-function renderPurchaseStats() {
-    const purchases = DB.getPurchases() || [];
-    const total = purchases.reduce((s, p) => s + (parseFloat(p.total_amount) || 0), 0);
-    const paid = purchases.filter(p => p.status === 'PAID').reduce((s, p) => s + (parseFloat(p.paid_amount) || 0), 0);
-    const pending = purchases.filter(p => p.status === 'PENDING').reduce((s, p) => s + (parseFloat(p.balance_amount) || 0), 0);
-    const totalGST = purchases.reduce((s, p) => s + (parseFloat(p.cgst_amount) || 0) + (parseFloat(p.sgst_amount) || 0) + (parseFloat(p.igst_amount) || 0), 0);
-
-    const statsEl = document.getElementById('purchaseStats');
-    if (!statsEl) return;
-
-    const fmt = (v) => '₹' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    statsEl.innerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white p-4 rounded-xl shadow border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Total Bills</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">${purchases.length}</p>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Total Purchase</p>
-                <p class="text-xl font-bold text-blue-700 mt-1">${fmt(total)}</p>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Paid</p>
-                <p class="text-xl font-bold text-green-700 mt-1">${fmt(paid)}</p>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Pending</p>
-                <p class="text-xl font-bold text-red-600 mt-1">${fmt(pending)}</p>
-            </div>
-        </div>
-    `;
-}
-
-// ==============================================================
-// FILTERS RENDER
-// ==============================================================
-function renderPurchaseFilters() {
-    const el = document.getElementById('purchaseFilters');
-    if (!el) return;
-
-    let catOptions = '<option value="ALL">All Categories</option>';
-    PURCHASE_CATEGORIES.forEach(c => {
-        catOptions += `<option value="${c.key}">${c.name}</option>`;
-    });
-
-    el.innerHTML = `
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4">
-            <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
-                <input type="text" id="purchaseSearch" placeholder="🔍 Search bill/supplier..." class="col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                <select id="purchaseCategoryFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">${catOptions}</select>
-                <select id="purchaseStatusFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="ALL">All Status</option>
-                    <option value="PAID">Paid</option>
-                    <option value="PENDING">Pending</option>
-                </select>
-                <input type="date" id="purchaseFromDate" class="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="From Date">
-                <input type="date" id="purchaseToDate" class="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="To Date">
-            </div>
-            <div class="flex flex-wrap gap-2 mt-3">
-                <button onclick="openAddPurchase()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow"><i class="fas fa-plus mr-1"></i> Add Purchase</button>
-                <button onclick="exportPurchasesCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg"><i class="fas fa-file-csv mr-1"></i> Export CSV</button>
-                <button onclick="clearPurchaseFilters()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg"><i class="fas fa-times mr-1"></i> Clear Filters</button>
-            </div>
-        </div>
-    `;
-}
-
-// ==============================================================
-// EVENT LISTENERS
-// ==============================================================
-function attachPurchaseEventListeners() {
-    const search = document.getElementById('purchaseSearch');
-    const catF = document.getElementById('purchaseCategoryFilter');
-    const statF = document.getElementById('purchaseStatusFilter');
-    const fromD = document.getElementById('purchaseFromDate');
-    const toD = document.getElementById('purchaseToDate');
-
-    if (search) search.addEventListener('input', (e) => { purchaseFilterState.search = e.target.value.toLowerCase(); purchaseCurrentPage = 1; renderPurchaseList(); });
-    if (catF) catF.addEventListener('change', (e) => { purchaseFilterState.category = e.target.value; purchaseCurrentPage = 1; renderPurchaseList(); });
-    if (statF) statF.addEventListener('change', (e) => { purchaseFilterState.status = e.target.value; purchaseCurrentPage = 1; renderPurchaseList(); });
-    if (fromD) fromD.addEventListener('change', (e) => { purchaseFilterState.fromDate = e.target.value; purchaseCurrentPage = 1; renderPurchaseList(); });
-    if (toD) toD.addEventListener('change', (e) => { purchaseFilterState.toDate = e.target.value; purchaseCurrentPage = 1; renderPurchaseList(); });
-}
-
-function clearPurchaseFilters() {
-    purchaseFilterState = { search: '', category: 'ALL', status: 'ALL', fy: 'ALL', fromDate: '', toDate: '' };
-    purchaseCurrentPage = 1;
-    renderPurchaseFilters();
-    attachPurchaseEventListeners();
-    renderPurchaseList();
-}
-
-// ==============================================================
-// LIST RENDER (with Filters + Pagination)
-// ==============================================================
 function renderPurchaseList() {
-    const tbody = document.getElementById('purchaseTableBody');
-    if (!tbody) return;
+    const purchases = DB.searchPurchases(purchaseSearchQuery, purchaseFilters);
+    const fys = [...new Set(DB.getActivePurchases().map(p => p.financial_year))].filter(Boolean).sort().reverse();
 
-    let purchases = DB.getPurchases() || [];
+    const totalAmount = purchases.reduce((s, p) => s + (p.total_amount || 0), 0);
+    const totalPaid = purchases.reduce((s, p) => s + (p.paid_amount || 0), 0);
+    const totalPending = totalAmount - totalPaid;
 
-    // Apply Filters
-    if (purchaseFilterState.search) {
-        const q = purchaseFilterState.search;
-        purchases = purchases.filter(p =>
-            (p.bill_no || '').toLowerCase().includes(q) ||
-            (p.supplier_name || '').toLowerCase().includes(q) ||
-            (p.supplier_gst || '').toLowerCase().includes(q)
-        );
-    }
-    if (purchaseFilterState.category !== 'ALL') {
-        purchases = purchases.filter(p => p.category === purchaseFilterState.category);
-    }
-    if (purchaseFilterState.status !== 'ALL') {
-        purchases = purchases.filter(p => p.status === purchaseFilterState.status);
-    }
-    if (purchaseFilterState.fromDate) {
-        purchases = purchases.filter(p => new Date(p.bill_date) >= new Date(purchaseFilterState.fromDate));
-    }
-    if (purchaseFilterState.toDate) {
-        purchases = purchases.filter(p => new Date(p.bill_date) <= new Date(purchaseFilterState.toDate));
-    }
+    const container = document.getElementById('page-purchases');
+    container.innerHTML = `
+        <div class="page-header">
+            <div class="page-header-title">
+                <h1>Purchases</h1>
+                <p>${purchases.length} bills • Total: ${formatCurrency(totalAmount)} • Pending: <span style="color:var(--danger);font-weight:700">${formatCurrency(totalPending)}</span></p>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="exportPurchasesExcel()">
+                    <span class="material-icons-round">download</span> Excel
+                </button>
+                <button class="btn btn-secondary" onclick="exportPurchasesPDF()" style="background:#dc2626;color:white">
+                    <span class="material-icons-round">picture_as_pdf</span> PDF
+                </button>
+                <button class="btn btn-primary" onclick="navigateTo('newPurchase')">
+                    <span class="material-icons-round">add</span> New Purchase
+                </button>
+            </div>
+        </div>
 
-    // Sort by date DESC
-    purchases.sort((a, b) => new Date(b.bill_date) - new Date(a.bill_date));
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px">
+            <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);padding:14px;border-radius:10px">
+                <div style="font-size:11px;color:#1565c0;font-weight:600">💳 Total Purchases</div>
+                <div style="font-size:20px;font-weight:800;color:#0d47a1;margin-top:4px">${formatCurrency(totalAmount)}</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);padding:14px;border-radius:10px">
+                <div style="font-size:11px;color:#2e7d32;font-weight:600">✅ Paid</div>
+                <div style="font-size:20px;font-weight:800;color:#1b5e20;margin-top:4px">${formatCurrency(totalPaid)}</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#ffebee,#ffcdd2);padding:14px;border-radius:10px">
+                <div style="font-size:11px;color:#c62828;font-weight:600">⏳ Pending</div>
+                <div style="font-size:20px;font-weight:800;color:#b71c1c;margin-top:4px">${formatCurrency(totalPending)}</div>
+            </div>
+        </div>
 
-    // Pagination
-    const totalPages = Math.max(1, Math.ceil(purchases.length / PURCHASE_PAGE_SIZE));
-    if (purchaseCurrentPage > totalPages) purchaseCurrentPage = totalPages;
-    const start = (purchaseCurrentPage - 1) * PURCHASE_PAGE_SIZE;
-    const pageData = purchases.slice(start, start + PURCHASE_PAGE_SIZE);
+        <div class="filter-row">
+            <input type="text" placeholder="🔍 Search bill no, supplier..." value="${purchaseSearchQuery}" onkeyup="purchaseSearchQuery=this.value; renderPurchaseList()" style="flex:1">
+            <select onchange="purchaseFilters.category=this.value; renderPurchaseList()">
+                <option value="">All Categories</option>
+                ${PURCHASE_CATEGORIES.map(c => `<option value="${c}" ${purchaseFilters.category===c?'selected':''}>${c}</option>`).join('')}
+            </select>
+            <select onchange="purchaseFilters.payment_status=this.value; renderPurchaseList()">
+                <option value="">All Status</option>
+                <option value="paid" ${purchaseFilters.payment_status==='paid'?'selected':''}>Paid</option>
+                <option value="unpaid" ${purchaseFilters.payment_status==='unpaid'?'selected':''}>Unpaid</option>
+                <option value="partial" ${purchaseFilters.payment_status==='partial'?'selected':''}>Partial</option>
+            </select>
+            <select onchange="purchaseFilters.financial_year=this.value; renderPurchaseList()">
+                <option value="">All Years</option>
+                ${fys.map(f => `<option value="${f}" ${purchaseFilters.financial_year===f?'selected':''}>FY ${f}</option>`).join('')}
+            </select>
+        </div>
 
-    if (pageData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-gray-500"><i class="fas fa-inbox text-4xl mb-2"></i><p>No Purchase Bills Found</p></td></tr>`;
-    } else {
-        tbody.innerHTML = pageData.map((p, idx) => {
-            const cat = PURCHASE_CATEGORIES.find(c => c.key === p.category) || { name: p.category || 'N/A', icon: 'fa-file' };
-            const attachIcon = p.drive_attachment_url
-                ? `<a href="${p.drive_attachment_url}" target="_blank" title="View Drive Bill" class="text-indigo-600 hover:text-indigo-800"><i class="fas fa-cloud-download-alt"></i></a>`
-                : p.attachment
-                    ? `<button onclick="viewLegacyAttachment('${p.id}')" title="View Attachment" class="text-gray-500 hover:text-gray-700"><i class="fas fa-paperclip"></i></button>`
-                    : `<span class="text-gray-300"><i class="fas fa-minus"></i></span>`;
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bill No</th>
+                            <th class="hide-mobile">Date</th>
+                            <th>Supplier</th>
+                            <th class="hide-mobile">Category</th>
+                            <th class="text-right hide-mobile">Amount</th>
+                            <th class="text-right">Balance</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${purchases.length === 0 ? `
+                            <tr><td colspan="8"><div class="empty-state"><span class="material-icons-round">shopping_cart</span><p>No purchases yet</p><button class="btn btn-primary" onclick="navigateTo('newPurchase')">Add Purchase</button></div></td></tr>
+                        ` : purchases.map(p => {
+                            const balance = (p.total_amount || 0) - (p.paid_amount || 0);
+                            return `
+                            <tr onclick="viewPurchase('${p.id}')" style="cursor:pointer">
+                                <td><strong style="font-family:monospace;font-size:11px;color:var(--primary)">${p.bill_no || 'N/A'}</strong></td>
+                                <td class="hide-mobile">${formatDate(p.bill_date)}</td>
+                                <td>${toProperCase(p.supplier_name)}</td>
+                                <td class="hide-mobile"><span class="badge badge-info" style="font-size:10px">${p.category || '-'}</span></td>
+                                <td class="text-right hide-mobile"><strong>${formatCurrency(p.total_amount)}</strong></td>
+                                <td class="text-right" style="color:${balance>0?'var(--danger)':'var(--success)'};font-weight:700">${formatCurrency(balance)}</td>
+                                <td class="text-center"><span class="badge ${p.payment_status==='paid'?'badge-success':p.payment_status==='partial'?'badge-warning':'badge-danger'}">${p.payment_status}</span></td>
+                                <td class="text-right" onclick="event.stopPropagation()">
+                                    <div class="table-actions">
+                                        <button class="btn-sm btn-view" onclick="viewPurchase('${p.id}')">View</button>
+                                        <button class="btn-sm btn-edit" onclick="editPurchase('${p.id}')">Edit</button>
+                                        <button class="btn-sm btn-del" onclick="deletePurchaseAction('${p.id}')">Del</button>
+                                    </div>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
 
-            return `
-                <tr class="hover:bg-gray-50 border-b">
-                    <td class="px-3 py-3 text-sm text-gray-500">${start + idx + 1}</td>
-                    <td class="px-3 py-3 text-sm font-mono text-indigo-700 cursor-pointer hover:underline" onclick="viewPurchase('${p.id}')">${p.bill_no}</td>
-                    <td class="px-3 py-3 text-sm text-gray-700">${formatDate(p.bill_date)}</td>
-                    <td class="px-3 py-3 text-sm font-medium text-gray-900">${p.supplier_name}</td>
-                    <td class="px-3 py-3 text-xs"><span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 font-semibold"><i class="fas ${cat.icon} mr-1"></i>${cat.name}</span></td>
-                    <td class="px-3 py-3 text-sm font-bold text-gray-900 text-right">₹${parseFloat(p.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td class="px-3 py-3 text-xs text-center"><span class="px-2 py-1 rounded-full font-bold ${p.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">${p.status}</span></td>
-                    <td class="px-3 py-3 text-sm text-center">
-                        ${attachIcon}
-                        <button onclick="viewPurchase('${p.id}')" class="text-blue-600 hover:text-blue-800 ml-2" title="View"><i class="fas fa-eye"></i></button>
-                        <button onclick="editPurchase('${p.id}')" class="text-yellow-600 hover:text-yellow-800 ml-2" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button onclick="deletePurchase('${p.id}')" class="text-red-600 hover:text-red-800 ml-2" title="Delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-    }
+function renderPurchaseForm(prefillData = null) {
+    editingPurchaseId = prefillData?.id || null;
+    const isEdit = !!editingPurchaseId;
+    const p = prefillData || {};
+    const suppliers = DB.getSuppliers();
+    const invoices = DB.getActiveInvoices();
 
-    // Pagination controls
-    const pagEl = document.getElementById('purchasePagination');
-    if (pagEl) {
-        pagEl.innerHTML = `
-            <div class="flex justify-between items-center mt-4 px-2">
-                <span class="text-sm text-gray-600">Showing ${pageData.length} of ${purchases.length} bills</span>
-                <div class="flex gap-2">
-                    <button onclick="changePurchasePage(-1)" ${purchaseCurrentPage === 1 ? 'disabled' : ''} class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm disabled:opacity-40">← Prev</button>
-                    <span class="px-3 py-1 text-sm font-medium">Page ${purchaseCurrentPage} of ${totalPages}</span>
-                    <button onclick="changePurchasePage(1)" ${purchaseCurrentPage === totalPages ? 'disabled' : ''} class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm disabled:opacity-40">Next →</button>
+    purchaseAttachmentFile = null;
+    existingDriveUrl = p.drive_attachment_url || null;
+    existingAttachName = p.attachment_name || null;
+
+    const hasDriveBill = !!(p.drive_attachment_url);
+    const hasLegacyBill = !!(p.bill_attachment && p.bill_attachment.length > 100);
+
+    const container = document.getElementById('page-newPurchase');
+    container.innerHTML = `
+        <div class="page-header">
+            <div class="page-header-title">
+                <h1>${isEdit ? 'Edit Purchase' : 'New Purchase'}</h1>
+                <p>Record supplier bill / expense</p>
+            </div>
+            <button class="btn btn-secondary" onclick="navigateTo('purchases')">
+                <span class="material-icons-round">arrow_back</span> Back
+            </button>
+        </div>
+
+        <div class="card card-body" style="margin-bottom:16px;border-left:4px solid var(--primary)">
+            <div class="section-heading" style="margin-top:0">
+                <span class="material-icons-round">receipt_long</span> Bill Details
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Bill / Invoice No. *</label>
+                    <input type="text" id="purBillNo" value="${p.bill_no || ''}" placeholder="e.g. TF/2026/1234" style="font-family:monospace;font-weight:700">
                 </div>
+                <div class="form-group">
+                    <label>Bill Date *</label>
+                    <input type="date" id="purBillDate" value="${p.bill_date || getTodayISO()}" required>
+                </div>
+                <div class="form-group">
+                    <label>Financial Year</label>
+                    <input type="text" id="purFY" value="${p.financial_year || getCurrentFY()}" style="font-family:monospace">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Supplier *</label>
+                    <input type="text" id="purSupplier" list="supList" value="${p.supplier_name || ''}" placeholder="Type or select supplier" onchange="onSupplierChange()">
+                    <datalist id="supList">
+                        ${suppliers.map(s => `<option value="${s.name}">`).join('')}
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label>Supplier GST (auto)</label>
+                    <input type="text" id="purSupplierGst" value="${p.supplier_gst || ''}" style="font-family:monospace;text-transform:uppercase">
+                </div>
+                <div class="form-group">
+                    <label>Category *</label>
+                    <select id="purCategory">
+                        ${PURCHASE_CATEGORIES.map(c => `<option value="${c}" ${p.category===c?'selected':''}>${c}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="purDescription" value="${p.description || ''}" placeholder="e.g. Delhi-Mumbai flight for Nishant Kumar">
+            </div>
+
+            <div class="form-group">
+                <label>Linked Sale Invoice (optional)</label>
+                <select id="purLinkedInvoice">
+                    <option value="">-- Not linked --</option>
+                    ${invoices.map(inv => `<option value="${inv.id}" ${p.linked_invoice_id===inv.id?'selected':''}>${inv.invoice_number} - ${inv.customer_name}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+
+        <div class="card card-body" style="margin-bottom:16px">
+            <div class="section-heading" style="margin-top:0">
+                <span class="material-icons-round">calculate</span> Amount Details
+            </div>
+            
+            <div style="background:#f0f7ff;padding:12px;border-radius:8px;margin-bottom:12px;border:1px solid #4285F4">
+                <div style="font-size:12px;font-weight:700;color:#1a73e8;margin-bottom:10px">💰 Main Amount</div>
+                <div class="form-row" style="margin-bottom:0">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Amount (₹) *</label>
+                        <input type="number" id="purMainAmount" step="0.01" value="${p.main_amount || p.base_amount || ''}" oninput="calcPurchaseTotal()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Included?</label>
+                        <select id="purMainGstInclusive" onchange="calcPurchaseTotal()">
+                            <option value="no" ${p.main_gst_inclusive === 'no' || !p.main_gst_inclusive ? 'selected' : ''}>No</option>
+                            <option value="yes" ${p.main_gst_inclusive === 'yes' ? 'selected' : ''}>Yes</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Rate (%)</label>
+                        <select id="purMainGstRate" onchange="calcPurchaseTotal()">
+                            <option value="0" ${p.main_gst_rate == 0 ? 'selected' : ''}>0%</option>
+                            <option value="5" ${p.main_gst_rate == 5 ? 'selected' : ''}>5%</option>
+                            <option value="12" ${p.main_gst_rate == 12 ? 'selected' : ''}>12%</option>
+                            <option value="18" ${(p.main_gst_rate == 18 || (!p.main_gst_rate && p.main_gst_rate !== 0)) ? 'selected' : ''}>18%</option>
+                            <option value="28" ${p.main_gst_rate == 28 ? 'selected' : ''}>28%</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:#fff8e6;padding:12px;border-radius:8px;margin-bottom:12px;border:1px solid #ffa500">
+                <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:10px">💼 Service Fee</div>
+                <div class="form-row" style="margin-bottom:0">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Service Fee (₹)</label>
+                        <input type="number" id="purServiceFee" step="0.01" value="${p.service_fee || ''}" oninput="calcPurchaseTotal()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Included?</label>
+                        <select id="purServiceGstInclusive" onchange="calcPurchaseTotal()">
+                            <option value="no" ${p.service_gst_inclusive === 'no' || !p.service_gst_inclusive ? 'selected' : ''}>No</option>
+                            <option value="yes" ${p.service_gst_inclusive === 'yes' ? 'selected' : ''}>Yes</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Rate (%)</label>
+                        <select id="purServiceGstRate" onchange="calcPurchaseTotal()">
+                            <option value="0" ${p.service_gst_rate == 0 ? 'selected' : ''}>0%</option>
+                            <option value="5" ${p.service_gst_rate == 5 ? 'selected' : ''}>5%</option>
+                            <option value="12" ${p.service_gst_rate == 12 ? 'selected' : ''}>12%</option>
+                            <option value="18" ${(p.service_gst_rate == 18 || (!p.service_gst_rate && p.service_gst_rate !== 0)) ? 'selected' : ''}>18%</option>
+                            <option value="28" ${p.service_gst_rate == 28 ? 'selected' : ''}>28%</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:var(--bg);padding:14px;border-radius:8px;border:2px solid var(--primary)">
+                <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px">📊 Total Breakdown</div>
+                <div class="calc-box" style="padding:0;background:transparent;border:none">
+                    <div class="calc-row"><span class="calc-label">Main Base:</span><span class="calc-value" id="purCalcMainBase">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label">Main GST:</span><span class="calc-value" id="purCalcMainGst">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label">Service Base:</span><span class="calc-value" id="purCalcServiceBase">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label">Service GST:</span><span class="calc-value" id="purCalcServiceGst">₹0.00</span></div>
+                    <div class="calc-row"><span class="calc-label"><strong>Total GST:</strong></span><span class="calc-value" id="purCalcTotalGst" style="font-weight:700;color:var(--info)">₹0.00</span></div>
+                    <div class="calc-row total"><span class="calc-label">Grand Total:</span><span class="calc-value" id="purCalcGrandTotal">₹0.00</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-body" style="margin-bottom:16px;border-left:4px solid var(--success)">
+            <div class="section-heading" style="margin-top:0;color:var(--success)">
+                <span class="material-icons-round">payments</span> Payment
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Payment Status *</label>
+                    <select id="purPayStatus" onchange="onPayStatusChange()">
+                        <option value="unpaid" ${p.payment_status==='unpaid' || !p.payment_status?'selected':''}>Unpaid</option>
+                        <option value="partial" ${p.payment_status==='partial'?'selected':''}>Partial</option>
+                        <option value="paid" ${p.payment_status==='paid'?'selected':''}>Paid</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Paid Amount (₹)</label>
+                    <input type="number" id="purPaidAmount" step="0.01" value="${p.paid_amount || 0}" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Payment Date</label>
+                    <input type="date" id="purPayDate" value="${p.payment_date || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Payment Mode</label>
+                    <select id="purPayMode">
+                        <option value="">Select</option>
+                        <option value="Cash" ${p.payment_mode==='Cash'?'selected':''}>Cash</option>
+                        <option value="Bank Transfer" ${p.payment_mode==='Bank Transfer'?'selected':''}>Bank Transfer</option>
+                        <option value="UPI" ${p.payment_mode==='UPI'?'selected':''}>UPI</option>
+                        <option value="Cheque" ${p.payment_mode==='Cheque'?'selected':''}>Cheque</option>
+                        <option value="Credit Card" ${p.payment_mode==='Credit Card'?'selected':''}>Credit Card</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Reference (Txn ID, Cheque No, etc.)</label>
+                <input type="text" id="purPayRef" value="${p.payment_ref || ''}">
+            </div>
+        </div>
+
+        <!-- Google Drive Bill Attachment -->
+        <div class="card card-body" style="margin-bottom:16px">
+            <div class="section-heading" style="margin-top:0">
+                <span class="material-icons-round">cloud_upload</span> Bill Attachment (Google Drive)
+            </div>
+            <div id="purAttachStatus">
+                ${hasDriveBill ? `
+                    <div style="background:#e8f5e9;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-size:12px;color:#2e7d32">✅ Bill on Drive: ${p.attachment_name || 'Attached'}</span>
+                        <div style="display:flex;gap:6px">
+                            <a href="${p.drive_attachment_url}" target="_blank" class="btn btn-sm btn-primary">View</a>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removePurchaseAttachment()">Remove</button>
+                        </div>
+                    </div>
+                ` : hasLegacyBill ? `
+                    <div style="background:#fff3e0;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-size:12px;color:#e65100">⚠️ Legacy bill (Local Storage). Re-upload to move to Drive!</span>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removePurchaseAttachment()">Remove</button>
+                    </div>
+                ` : ''}
+            </div>
+            <input type="file" id="purBillFile" accept="image/*,.pdf" style="display:none" onchange="uploadPurchaseAttachment(event)">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('purBillFile').click()" style="width:100%;padding:12px;border:2px dashed var(--border)">
+                <span class="material-icons-round">upload_file</span> Upload Bill (Auto-saves to Drive)
+            </button>
+        </div>
+
+        <div class="card card-body" style="margin-bottom:16px">
+            <div class="section-heading" style="margin-top:0">📝 Notes</div>
+            <textarea id="purNotes" rows="2" placeholder="Internal notes...">${p.notes || ''}</textarea>
+        </div>
+
+        <div class="btn-group" style="margin-bottom:40px">
+            <button class="btn btn-secondary" onclick="navigateTo('purchases')" style="flex:1">Cancel</button>
+            <button class="btn btn-primary" id="purSaveBtn" onclick="savePurchase()" style="flex:2">
+                <span class="material-icons-round">${isEdit ? 'save' : 'add'}</span>
+                ${isEdit ? 'Update Purchase' : 'Save Purchase'}
+            </button>
+        </div>
+    `;
+
+    calcPurchaseTotal();
+}
+
+function uploadPurchaseAttachment(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { showToast('Max 10MB limit!', 'error'); return; }
+
+    purchaseAttachmentFile = file;
+
+    const statusDiv = document.getElementById('purAttachStatus');
+    if (statusDiv) {
+        statusDiv.innerHTML = `
+            <div style="background:#e3f2fd;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;color:#1565c0">📎 ${file.name} (${(file.size/1024).toFixed(1)} KB) — Will upload on Save</span>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removePurchaseAttachment()">Remove</button>
             </div>
         `;
     }
 }
 
-function changePurchasePage(delta) {
-    purchaseCurrentPage += delta;
-    renderPurchaseList();
-}
-
-// ==============================================================
-// ADD PURCHASE MODAL
-// ==============================================================
-function openAddPurchase() {
-    openPurchaseForm(null);
-}
-
-function editPurchase(id) {
-    const bill = DB.getPurchases().find(p => p.id === id);
-    if (!bill) { showToast('Bill not found', 'error'); return; }
-    openPurchaseForm(bill);
-}
-
-function openPurchaseForm(bill) {
-    const modal = document.getElementById('purchaseModal');
-    if (!modal) {
-        // Create modal container if not exists
-        const div = document.createElement('div');
-        div.id = 'purchaseModal';
-        div.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
-        document.body.appendChild(div);
+function removePurchaseAttachment() {
+    purchaseAttachmentFile = null;
+    existingDriveUrl = null;
+    existingAttachName = null;
+    if (editingPurchaseId) {
+        DB.updatePurchase(editingPurchaseId, { bill_attachment: null, drive_attachment_url: null, attachment_name: null });
     }
-    const m = document.getElementById('purchaseModal');
-    m.classList.remove('hidden');
-
-    const isEdit = !!bill;
-    const b = bill || {};
-
-    let catOpts = PURCHASE_CATEGORIES.map(c => `<option value="${c.key}" ${b.category === c.key ? 'selected' : ''}>${c.name}</option>`).join('');
-
-    m.innerHTML = `
-        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
-                <h2 class="text-xl font-bold text-gray-900">${isEdit ? '✏️ Edit' : '➕ Add'} Purchase Bill</h2>
-                <button onclick="closePurchaseModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            </div>
-            <form id="purchaseForm" class="p-6 space-y-4">
-                <input type="hidden" id="p_id" value="${b.id || ''}">
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Bill No <span class="text-red-500">*</span></label>
-                        <input type="text" id="p_bill_no" required value="${b.bill_no || ''}" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Bill Date <span class="text-red-500">*</span></label>
-                        <input type="date" id="p_bill_date" required value="${b.bill_date || new Date().toISOString().split('T')[0]}" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Supplier Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="p_supplier_name" required value="${b.supplier_name || ''}" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Supplier GSTIN</label>
-                        <input type="text" id="p_supplier_gst" value="${b.supplier_gst || ''}" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase">
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Category <span class="text-red-500">*</span></label>
-                        <select id="p_category" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">${catOpts}</select>
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">GST Type</label>
-                        <select id="p_gst_type" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" onchange="calcPurchaseTotal()">
-                            <option value="NONE" ${b.gst_type === 'NONE' ? 'selected' : ''}>No GST</option>
-                            <option value="CGST_SGST" ${b.gst_type === 'CGST_SGST' ? 'selected' : ''}>CGST + SGST (Intra-state)</option>
-                            <option value="IGST" ${b.gst_type === 'IGST' ? 'selected' : ''}>IGST (Inter-state)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Taxable Amount</label>
-                        <input type="number" id="p_taxable_amount" step="0.01" value="${b.taxable_amount || 0}" oninput="calcPurchaseTotal()" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">GST Rate (%)</label>
-                        <select id="p_gst_rate" onchange="calcPurchaseTotal()" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                            <option value="0" ${b.gst_rate == 0 ? 'selected' : ''}>0%</option>
-                            <option value="5" ${b.gst_rate == 5 ? 'selected' : ''}>5%</option>
-                            <option value="12" ${b.gst_rate == 12 ? 'selected' : ''}>12%</option>
-                            <option value="18" ${b.gst_rate == 18 ? 'selected' : ''}>18%</option>
-                            <option value="28" ${b.gst_rate == 28 ? 'selected' : ''}>28%</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-lg">
-                    <div><label class="text-xs text-gray-600">CGST</label><input type="text" id="p_cgst_amount" readonly value="${b.cgst_amount || 0}" class="mt-1 w-full px-2 py-1 bg-white border rounded text-sm"></div>
-                    <div><label class="text-xs text-gray-600">SGST</label><input type="text" id="p_sgst_amount" readonly value="${b.sgst_amount || 0}" class="mt-1 w-full px-2 py-1 bg-white border rounded text-sm"></div>
-                    <div><label class="text-xs text-gray-600">IGST</label><input type="text" id="p_igst_amount" readonly value="${b.igst_amount || 0}" class="mt-1 w-full px-2 py-1 bg-white border rounded text-sm"></div>
-                    <div><label class="text-xs text-gray-600 font-bold">Grand Total</label><input type="text" id="p_total_amount" readonly value="${b.total_amount || 0}" class="mt-1 w-full px-2 py-1 bg-yellow-50 border border-yellow-300 rounded text-sm font-bold"></div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Payment Status</label>
-                        <select id="p_status" onchange="togglePaidAmount()" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                            <option value="PENDING" ${b.status === 'PENDING' ? 'selected' : ''}>Pending</option>
-                            <option value="PAID" ${b.status === 'PAID' ? 'selected' : ''}>Paid</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 uppercase">Paid Amount</label>
-                        <input type="number" id="p_paid_amount" step="0.01" value="${b.paid_amount || 0}" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="text-xs font-semibold text-gray-600 uppercase">Notes / Particulars</label>
-                    <textarea id="p_notes" rows="2" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">${b.notes || ''}</textarea>
-                </div>
-
-                <div class="border-t border-gray-200 pt-4">
-                    <label class="text-xs font-semibold text-gray-600 uppercase">Attachment (Upload to Google Drive)</label>
-                    <input type="file" id="p_attachment_file" accept="image/*,application/pdf" class="mt-1 w-full text-sm">
-                    ${b.drive_attachment_url ? `<p class="text-xs text-green-600 mt-2"><i class="fas fa-check-circle"></i> Existing bill uploaded: <a href="${b.drive_attachment_url}" target="_blank" class="underline">View</a></p>` : ''}
-                    <p class="text-xs text-gray-500 mt-1">Note: Images will auto-compress. Upload to Drive folder "Tripzar Invoices > Purchase Bills"</p>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-4 border-t">
-                    <button type="button" onclick="closePurchaseModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg">Cancel</button>
-                    <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow"><i class="fas fa-save mr-1"></i> ${isEdit ? 'Update' : 'Save'} Bill</button>
-                </div>
-            </form>
-        </div>
-    `;
-
-    document.getElementById('purchaseForm').addEventListener('submit', savePurchase);
-    calcPurchaseTotal();
+    const statusDiv = document.getElementById('purAttachStatus');
+    if (statusDiv) statusDiv.innerHTML = '';
+    const fileInput = document.getElementById('purBillFile');
+    if (fileInput) fileInput.value = '';
+    showToast('Attachment removed!', 'success');
 }
 
-function closePurchaseModal() {
-    const m = document.getElementById('purchaseModal');
-    if (m) m.classList.add('hidden');
+function onSupplierChange() {
+    const name = document.getElementById('purSupplier').value;
+    const supplier = DB.getSuppliers().find(s => s.name === name);
+    if (supplier) document.getElementById('purSupplierGst').value = supplier.gst_no || '';
 }
 
-function togglePaidAmount() {
-    const status = document.getElementById('p_status').value;
-    const paidEl = document.getElementById('p_paid_amount');
-    const totalEl = document.getElementById('p_total_amount');
-    if (status === 'PAID') {
-        paidEl.value = totalEl.value;
-    } else {
-        paidEl.value = 0;
+function onPayStatusChange() {
+    const status = document.getElementById('purPayStatus').value;
+    const total = calcPurchaseTotal().grandTotal;
+    if (status === 'paid') {
+        document.getElementById('purPaidAmount').value = total.toFixed(2);
+        if (!document.getElementById('purPayDate').value) document.getElementById('purPayDate').value = getTodayISO();
+    } else if (status === 'unpaid') {
+        document.getElementById('purPaidAmount').value = 0;
     }
 }
 
 function calcPurchaseTotal() {
-    const taxable = parseFloat(document.getElementById('p_taxable_amount').value) || 0;
-    const rate = parseFloat(document.getElementById('p_gst_rate').value) || 0;
-    const gstType = document.getElementById('p_gst_type').value;
+    const mainAmount = parseFloat(document.getElementById('purMainAmount')?.value) || 0;
+    const mainGstInclusive = document.getElementById('purMainGstInclusive')?.value === 'yes';
+    const mainGstRate = parseFloat(document.getElementById('purMainGstRate')?.value) || 0;
+    let mainBase = mainGstInclusive && mainGstRate > 0 ? mainAmount / (1 + mainGstRate / 100) : mainAmount;
+    let mainGst = mainGstInclusive && mainGstRate > 0 ? mainAmount - mainBase : mainAmount * mainGstRate / 100;
+    
+    const serviceFee = parseFloat(document.getElementById('purServiceFee')?.value) || 0;
+    const serviceGstInclusive = document.getElementById('purServiceGstInclusive')?.value === 'yes';
+    const serviceGstRate = parseFloat(document.getElementById('purServiceGstRate')?.value) || 0;
+    let serviceBase = serviceGstInclusive && serviceGstRate > 0 ? serviceFee / (1 + serviceGstRate / 100) : serviceFee;
+    let serviceGst = serviceGstInclusive && serviceGstRate > 0 ? serviceFee - serviceBase : serviceFee * serviceGstRate / 100;
 
-    let cgst = 0, sgst = 0, igst = 0;
-    const gstAmt = taxable * rate / 100;
-
-    if (gstType === 'CGST_SGST') {
-        cgst = gstAmt / 2;
-        sgst = gstAmt / 2;
-    } else if (gstType === 'IGST') {
-        igst = gstAmt;
-    }
-
-    const total = taxable + cgst + sgst + igst;
-
-    document.getElementById('p_cgst_amount').value = cgst.toFixed(2);
-    document.getElementById('p_sgst_amount').value = sgst.toFixed(2);
-    document.getElementById('p_igst_amount').value = igst.toFixed(2);
-    document.getElementById('p_total_amount').value = total.toFixed(2);
+    const totalGst = mainGst + serviceGst;
+    const grandTotal = mainBase + mainGst + serviceBase + serviceGst;
+    
+    const setV = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatCurrency(val); };
+    setV('purCalcMainBase', mainBase); setV('purCalcMainGst', mainGst);
+    setV('purCalcServiceBase', serviceBase); setV('purCalcServiceGst', serviceGst);
+    setV('purCalcTotalGst', totalGst); setV('purCalcGrandTotal', grandTotal);
+    
+    return { mainBase, mainGst, mainTotal: mainBase+mainGst, serviceBase, serviceGst, serviceTotal: serviceBase+serviceGst, totalGst, grandTotal };
 }
 
-// ==============================================================
-// SAVE PURCHASE (with Google Drive Upload)
-// ==============================================================
-async function savePurchase(e) {
-    e.preventDefault();
+async function savePurchase() {
+    const billNo = document.getElementById('purBillNo').value.trim();
+    const billDate = document.getElementById('purBillDate').value;
+    const supplierName = document.getElementById('purSupplier').value.trim();
+    const mainAmt = parseFloat(document.getElementById('purMainAmount').value) || 0;
+    const svcAmt = parseFloat(document.getElementById('purServiceFee').value) || 0;
 
-    const btn = e.target.querySelector('button[type="submit"]');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    if (!billNo || !billDate || !supplierName) { showToast('Fill all required fields!', 'error'); return; }
+    if (mainAmt <= 0 && svcAmt <= 0) { showToast('Enter Amount!', 'error'); return; }
+
+    const saveBtn = document.getElementById('purSaveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="material-icons-round">hourglass_top</span> Saving...'; }
 
     try {
-        const id = document.getElementById('p_id').value || 'PUR_' + Date.now();
-        const fileInput = document.getElementById('p_attachment_file');
-        let driveUrl = '';
+        if (!DB.getSuppliers().find(s => s.name.toLowerCase() === supplierName.toLowerCase())) {
+            DB.addSupplier({ name: supplierName, gst_no: document.getElementById('purSupplierGst').value.trim().toUpperCase() });
+        }
 
-        // Upload to Google Drive if file selected
-        if (fileInput.files && fileInput.files[0]) {
-            const file = fileInput.files[0];
-            btn.innerHTML = '<i class="fas fa-cloud-upload-alt fa-pulse"></i> Uploading to Drive...';
+        // Upload to Drive if new file selected
+        let driveUrl = existingDriveUrl;
+        let attachName = existingAttachName;
 
-            if (typeof uploadPurchaseBill === 'function') {
-                try {
-                    const uploadRes = await uploadPurchaseBill(file, id);
-                    if (uploadRes && uploadRes.url) {
-                        driveUrl = uploadRes.url;
-                        showToast('✅ Uploaded to Drive!', 'success');
-                    } else {
-                        showToast('⚠️ Drive upload failed, saving bill without attachment', 'warning');
-                    }
-                } catch (err) {
-                    console.error('Drive upload error:', err);
-                    showToast('⚠️ Drive upload failed: ' + err.message, 'warning');
-                }
+        if (purchaseAttachmentFile) {
+            if (saveBtn) saveBtn.innerHTML = 'Uploading to Drive...';
+            try {
+                const safeBill = billNo.replace(/[^a-zA-Z0-9]/g, '_');
+                const result = await uploadBillToDrive(purchaseAttachmentFile, `${safeBill}_${supplierName.substring(0,10)}.${purchaseAttachmentFile.name.split('.').pop()}`);
+                if (result && result.url) { driveUrl = result.url; attachName = result.fileName; }
+            } catch (err) {
+                console.error(err);
+                if (!confirm('Drive upload failed! Save without bill?')) return;
             }
         }
 
-        // Get existing bill (for edit)
-        const existing = DB.getPurchases().find(p => p.id === id);
+        const calc = calcPurchaseTotal();
+        const existingData = editingPurchaseId ? DB.getPurchaseById(editingPurchaseId) : {};
 
-        const bill = {
-            id: id,
-            bill_no: document.getElementById('p_bill_no').value.trim(),
-            bill_date: document.getElementById('p_bill_date').value,
-            supplier_name: document.getElementById('p_supplier_name').value.trim(),
-            supplier_gst: document.getElementById('p_supplier_gst').value.trim().toUpperCase(),
-            category: document.getElementById('p_category').value,
-            gst_type: document.getElementById('p_gst_type').value,
-            taxable_amount: parseFloat(document.getElementById('p_taxable_amount').value) || 0,
-            gst_rate: parseFloat(document.getElementById('p_gst_rate').value) || 0,
-            cgst_amount: parseFloat(document.getElementById('p_cgst_amount').value) || 0,
-            sgst_amount: parseFloat(document.getElementById('p_sgst_amount').value) || 0,
-            igst_amount: parseFloat(document.getElementById('p_igst_amount').value) || 0,
-            total_amount: parseFloat(document.getElementById('p_total_amount').value) || 0,
-            paid_amount: parseFloat(document.getElementById('p_paid_amount').value) || 0,
-            status: document.getElementById('p_status').value,
-            notes: document.getElementById('p_notes').value.trim(),
-            drive_attachment_url: driveUrl || (existing && existing.drive_attachment_url) || '',
-            attachment: (existing && existing.attachment) || '', // legacy
-            financial_year: getFinancialYear(document.getElementById('p_bill_date').value),
-            created_at: (existing && existing.created_at) || new Date().toISOString(),
-            updated_at: new Date().toISOString()
+        const data = {
+            bill_no: billNo, bill_date: billDate, financial_year: document.getElementById('purFY').value || getCurrentFY(),
+            supplier_name: supplierName, supplier_gst: document.getElementById('purSupplierGst').value.toUpperCase(),
+            category: document.getElementById('purCategory').value, description: document.getElementById('purDescription').value,
+            linked_invoice_id: document.getElementById('purLinkedInvoice').value || '',
+            
+            main_amount: mainAmt, main_gst_inclusive: document.getElementById('purMainGstInclusive').value,
+            main_gst_rate: parseFloat(document.getElementById('purMainGstRate').value) || 0,
+            main_base: calc.mainBase, main_gst_amount: calc.mainGst, main_total: calc.mainTotal,
+            
+            service_fee: svcAmt, service_gst_inclusive: document.getElementById('purServiceGstInclusive').value,
+            service_gst_rate: parseFloat(document.getElementById('purServiceGstRate').value) || 0,
+            service_base: calc.serviceBase, service_gst_amount: calc.serviceGst, service_total: calc.serviceTotal,
+            
+            base_amount: calc.mainBase + calc.serviceBase, gst_rate: parseFloat(document.getElementById('purMainGstRate').value)||0,
+            gst_amount: calc.totalGst, total_amount: calc.grandTotal,
+            
+            paid_amount: parseFloat(document.getElementById('purPaidAmount').value)||0,
+            payment_status: document.getElementById('purPayStatus').value,
+            payment_date: document.getElementById('purPayDate').value,
+            payment_mode: document.getElementById('purPayMode').value,
+            payment_ref: document.getElementById('purPayRef').value, notes: document.getElementById('purNotes').value,
+            
+            drive_attachment_url: driveUrl, attachment_name: attachName,
+            // Keep legacy base64 ONLY if we haven't uploaded a new one to Drive yet
+            bill_attachment: (purchaseAttachmentFile || driveUrl) ? null : (existingData.bill_attachment || null)
         };
 
-        bill.balance_amount = bill.total_amount - bill.paid_amount;
-
-        // Save to DB
-        const all = DB.getPurchases() || [];
-        const idx = all.findIndex(p => p.id === id);
-        if (idx !== -1) all[idx] = bill;
-        else all.push(bill);
-        DB.setPurchases(all);
-
-        showToast('✅ Purchase Bill Saved!', 'success');
-        closePurchaseModal();
-        renderPurchaseStats();
-        renderPurchaseList();
-    } catch (err) {
-        console.error(err);
-        showToast('❌ Error: ' + err.message, 'error');
+        let saved = editingPurchaseId ? DB.updatePurchase(editingPurchaseId, data) : DB.addPurchase(data);
+        if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId && saved) FirebaseSync.savePurchase(saved);
+        
+        purchaseAttachmentFile = null;
+        showToast('Saved!', 'success');
+        viewPurchase(saved.id);
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = 'Save Purchase'; }
     }
 }
 
-function getFinancialYear(dateStr) {
-    const d = new Date(dateStr);
-    const m = d.getMonth();
-    const y = d.getFullYear();
-    return m >= 3 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
+function editPurchase(id) {
+    const p = DB.getPurchaseById(id);
+    if (!p) return;
+    navigateTo('newPurchase');
+    setTimeout(() => renderPurchaseForm(p), 50);
 }
 
-// ==============================================================
-// DELETE PURCHASE
-// ==============================================================
-function deletePurchase(id) {
-    if (!confirm('Delete this purchase bill permanently?')) return;
-    const all = DB.getPurchases() || [];
-    const updated = all.filter(p => p.id !== id);
-    DB.setPurchases(updated);
-    showToast('🗑️ Bill Deleted!', 'success');
-    renderPurchaseStats();
+async function deletePurchaseAction(id) {
+    if (!confirmDialog('Delete this purchase?')) return;
+    DB.deletePurchase(id);
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.userId) await FirebaseSync.deletePurchase(id);
+    showToast('Deleted!', 'success');
     renderPurchaseList();
-
-    // If view is open, close it
-    const viewSec = document.getElementById('purchaseViewSection');
-    if (viewSec && !viewSec.classList.contains('hidden')) {
-        showPurchaseList();
-    }
 }
 
-// ==============================================================
-// PREMIUM VIEW
-// ==============================================================
 function viewPurchase(id) {
-    const purchases = DB.getPurchases();
-    const bill = purchases.find(p => p.id === id);
-    if (!bill) { showToast('Purchase Bill not found!', 'error'); return; }
+    const p = DB.getPurchaseById(id);
+    if (!p) return;
+    const balance = (p.total_amount || 0) - (p.paid_amount || 0);
+    const linkedInv = p.linked_invoice_id ? DB.getInvoiceById(p.linked_invoice_id) : null;
+    const hasBill = p.drive_attachment_url || p.bill_attachment;
 
-    const listSec = document.getElementById('purchaseListSection');
-    const viewSec = document.getElementById('purchaseViewSection');
-    if (listSec) listSec.classList.add('hidden');
-    if (viewSec) viewSec.classList.remove('hidden');
-
-    const formatAmt = (amt) => '₹' + parseFloat(amt || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    // Attachment
-    let attachmentHTML = '';
-    if (bill.drive_attachment_url) {
-        attachmentHTML = `<a href="${bill.drive_attachment_url}" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-md transition-all"><i class="fas fa-external-link-alt"></i> View Original Bill (Drive)</a>`;
-    } else if (bill.attachment) {
-        attachmentHTML = `<button onclick="viewLegacyAttachment('${bill.id}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm transition-all"><i class="fas fa-image"></i> View Saved Attachment</button>`;
-    } else {
-        attachmentHTML = `<span class="text-sm text-gray-500 italic"><i class="fas fa-file-slash"></i> No attachment uploaded</span>`;
-    }
-
-    // Tax breakdown
-    let taxHTML = '';
-    const cgst = parseFloat(bill.cgst_amount || 0);
-    const sgst = parseFloat(bill.sgst_amount || 0);
-    const igst = parseFloat(bill.igst_amount || 0);
-    const taxable = parseFloat(bill.taxable_amount || 0);
-
-    if (cgst > 0 || sgst > 0 || igst > 0 || taxable > 0) {
-        taxHTML = `
-            <div class="flex justify-between items-center py-2 border-b border-gray-100 text-sm">
-                <span class="text-gray-500">Taxable Value:</span><span class="font-medium text-gray-800">${formatAmt(taxable)}</span>
+    navigateTo('purchaseView');
+    const c = document.getElementById('page-purchaseView');
+    c.innerHTML = `
+        <div class="page-header">
+            <div class="page-header-title">
+                <h1>Purchase Bill</h1>
+                <p style="font-family:monospace;color:var(--primary);font-weight:700">${p.bill_no}</p>
             </div>
-            ${cgst > 0 ? `<div class="flex justify-between items-center py-2 border-b border-gray-100 text-sm"><span class="text-gray-500">CGST (${bill.gst_rate/2}%):</span><span class="font-medium text-gray-800">${formatAmt(cgst)}</span></div>
-            <div class="flex justify-between items-center py-2 border-b border-gray-100 text-sm"><span class="text-gray-500">SGST (${bill.gst_rate/2}%):</span><span class="font-medium text-gray-800">${formatAmt(sgst)}</span></div>` : ''}
-            ${igst > 0 ? `<div class="flex justify-between items-center py-2 border-b border-gray-100 text-sm"><span class="text-gray-500">IGST (${bill.gst_rate}%):</span><span class="font-medium text-gray-800">${formatAmt(igst)}</span></div>` : ''}
-        `;
-    }
-
-    const cat = PURCHASE_CATEGORIES.find(c => c.key === bill.category) || { name: bill.category || 'N/A', icon: 'fa-file' };
-
-    viewSec.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <div>
-                <h2 class="text-2xl font-extrabold text-gray-900 tracking-tight">Purchase Bill</h2>
-                <p class="text-sm font-mono text-green-700 mt-1">${bill.bill_no}</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="editPurchase('${bill.id}')" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm"><i class="fas fa-pen mr-1"></i> Edit</button>
-                <button onclick="deletePurchase('${bill.id}')" class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 shadow-sm"><i class="fas fa-trash-alt mr-1"></i> Delete</button>
-                <button onclick="showPurchaseList()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">&larr; Back</button>
-            </div>
+            <button class="btn btn-secondary" onclick="navigateTo('purchases')">← Back</button>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div class="grid grid-cols-1 md:grid-cols-2 p-6 md:p-8 gap-8 border-b border-gray-100">
+        <div class="invoice-actions">
+            <button class="btn btn-secondary" onclick="editPurchase('${p.id}')"><span class="material-icons-round">edit</span> Edit</button>
+            ${hasBill ? `<button class="btn btn-primary" onclick="downloadPurchaseAttachment('${p.id}')"><span class="material-icons-round">download</span> Bill</button>` : ''}
+            <button class="btn btn-danger" onclick="deletePurchaseAction('${p.id}')"><span class="material-icons-round">delete</span> Delete</button>
+        </div>
+
+        <div class="card card-body" style="margin-bottom:16px">
+            <div class="grid-2" style="margin-bottom:16px">
                 <div>
-                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Supplier Details</h3>
-                    <p class="text-lg font-bold text-gray-900">${bill.supplier_name}</p>
-                    ${bill.supplier_gst ? `<p class="text-sm text-gray-500 mt-1"><i class="fas fa-file-invoice mr-1"></i> GST: ${bill.supplier_gst}</p>` : ''}
-                    <div class="mt-4 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase"><i class="fas ${cat.icon} mr-1"></i> ${cat.name}</div>
+                    <div class="section-title">Supplier</div>
+                    <h3 style="font-size:16px;font-weight:700">${toProperCase(p.supplier_name)}</h3>
+                    ${p.supplier_gst ? `<p style="font-size:12px;color:var(--text-secondary)">GST: ${p.supplier_gst}</p>` : ''}
+                    <span class="badge badge-info" style="margin-top:6px">${p.category}</span>
                 </div>
-                <div class="md:text-right">
-                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Bill Summary</h3>
-                    <p class="text-sm text-gray-800 mb-1">Bill No: <span class="font-bold text-gray-900">${bill.bill_no}</span></p>
-                    <p class="text-sm text-gray-800 mb-1">Date: <span class="font-medium">${formatDate(bill.bill_date)}</span></p>
-                    <p class="text-sm text-gray-800 mb-3">FY: <span class="font-medium">${bill.financial_year || '2026-27'}</span></p>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${bill.status === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'} uppercase">${bill.status === 'PAID' ? '<i class="fas fa-check-circle mr-1"></i>' : '<i class="fas fa-clock mr-1"></i>'} ${bill.status}</span>
+                <div style="text-align:right">
+                    <p>Bill: <strong>${p.bill_no}</strong></p>
+                    <p>Date: <strong>${formatDate(p.bill_date)}</strong></p>
+                    <p>FY: <strong>${p.financial_year}</strong></p>
+                    <span class="badge ${p.payment_status==='paid'?'badge-success':p.payment_status==='partial'?'badge-warning':'badge-danger'}" style="margin-top:6px">${p.payment_status.toUpperCase()}</span>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 p-6 md:p-8 gap-8 bg-gray-50">
-                <div class="flex flex-col justify-between">
-                    <div>
-                        <h3 class="text-sm font-semibold text-gray-700 mb-3 border-b border-gray-200 pb-2">Attachment</h3>
-                        <div class="mt-2">${attachmentHTML}</div>
-                    </div>
-                    ${bill.notes ? `<div class="mt-6 bg-white p-4 rounded-lg border border-gray-200 shadow-sm"><h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Notes / Particulars</h3><p class="text-sm text-gray-700 whitespace-pre-wrap">${bill.notes}</p></div>` : ''}
-                </div>
-
-                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-                    <h3 class="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wide border-b border-gray-100 pb-2">Amount Details</h3>
-                    ${taxHTML}
-                    <div class="flex justify-between items-center py-4 mt-2 bg-indigo-50/50 rounded-lg px-3 border border-indigo-100">
-                        <span class="text-base font-bold text-indigo-900">Grand Total:</span>
-                        <span class="text-xl font-black text-indigo-700">${formatAmt(bill.total_amount)}</span>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-gray-100">
-                        <div class="flex justify-between items-center py-1 text-sm"><span class="text-gray-500">Amount Paid:</span><span class="font-bold text-green-600">${formatAmt(bill.paid_amount)}</span></div>
-                        <div class="flex justify-between items-center py-1 text-sm mt-1"><span class="text-gray-500">Balance Due:</span><span class="font-bold ${bill.balance_amount > 0 ? 'text-red-600' : 'text-gray-800'}">${formatAmt(bill.balance_amount)}</span></div>
-                    </div>
-                </div>
+            <div class="calc-box">
+                <div class="calc-row total"><span class="calc-label">Grand Total:</span><span class="calc-value">${formatCurrency(p.total_amount || 0)}</span></div>
+                <div class="calc-row" style="color:var(--success)"><span class="calc-label">Paid:</span><span class="calc-value">${formatCurrency(p.paid_amount || 0)}</span></div>
+                <div class="calc-row" style="color:${balance>0?'var(--danger)':'var(--success)'};font-weight:700"><span class="calc-label">Balance:</span><span class="calc-value">${formatCurrency(balance)}</span></div>
             </div>
         </div>
+
+        ${p.drive_attachment_url ? `
+            <div class="card card-body" style="margin-bottom:16px;border-left:4px solid #1565c0">
+                <div class="section-heading" style="margin-top:0;color:#1565c0">☁️ Bill on Google Drive</div>
+                <a href="${p.drive_attachment_url}" target="_blank" class="btn btn-primary" style="margin-top:8px">Open Bill in Drive</a>
+            </div>
+        ` : ''}
     `;
 }
 
-function showPurchaseList() {
-    const listSec = document.getElementById('purchaseListSection');
-    const viewSec = document.getElementById('purchaseViewSection');
-    if (listSec) listSec.classList.remove('hidden');
-    if (viewSec) viewSec.classList.add('hidden');
-}
-
-function viewLegacyAttachment(id) {
-    const bill = DB.getPurchases().find(p => p.id === id);
-    if (!bill || !bill.attachment) return;
-    const w = window.open('');
-    if (bill.attachment.includes('application/pdf')) {
-        w.document.write(`<iframe src="${bill.attachment}" width="100%" height="100%" style="border:none;"></iframe>`);
-    } else {
-        w.document.write(`<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f3f4f6;"><img src="${bill.attachment}" style="max-width:90%;max-height:90%;box-shadow:0 10px 25px rgba(0,0,0,0.1);border-radius:8px;"></div>`);
+function downloadPurchaseAttachment(id) {
+    const p = DB.getPurchaseById(id);
+    if (!p) return;
+    if (p.drive_attachment_url) { window.open(p.drive_attachment_url, '_blank'); return; }
+    if (p.bill_attachment) {
+        const a = document.createElement('a');
+        a.href = p.bill_attachment;
+        a.download = `${p.supplier_name}_${p.bill_no}.pdf`.replace(/[^a-zA-Z0-9_.]/g, '_');
+        a.click();
     }
 }
 
-// ==============================================================
-// EXPORT CSV
-// ==============================================================
-function exportPurchasesCSV() {
-    const purchases = DB.getPurchases() || [];
-    if (purchases.length === 0) { showToast('No data to export!', 'warning'); return; }
-
-    const headers = ['Bill No', 'Date', 'Supplier', 'GSTIN', 'Category', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total', 'Paid', 'Balance', 'Status', 'FY', 'Drive URL'];
-    const rows = purchases.map(p => [
-        p.bill_no, p.bill_date, p.supplier_name, p.supplier_gst, p.category,
-        p.taxable_amount, p.cgst_amount, p.sgst_amount, p.igst_amount,
-        p.total_amount, p.paid_amount, p.balance_amount, p.status, p.financial_year, p.drive_attachment_url || ''
-    ]);
-
-    const csv = [headers, ...rows].map(r => r.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Purchases_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('📥 CSV Downloaded!', 'success');
+function exportPurchasesExcel() {
+    const purchases = DB.searchPurchases(purchaseSearchQuery, purchaseFilters);
+    if (purchases.length === 0) return;
+    const data = purchases.map((p, idx) => ({
+        'S.No': idx + 1, 'Bill No': p.bill_no, 'Bill Date': p.bill_date, 'Supplier': p.supplier_name,
+        'Base': p.base_amount || 0, 'GST': p.gst_amount || 0, 'Total': p.total_amount || 0,
+        'Drive Link': p.drive_attachment_url || ''
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Purchases');
+    XLSX.writeFile(wb, `Purchases_${getTodayISO()}.xlsx`);
 }
 
-// ==============================================================
-// HELPERS
-// ==============================================================
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${String(d.getFullYear()).slice(2)}`;
+function exportPurchasesPDF() {
+    const purchases = DB.searchPurchases(purchaseSearchQuery, purchaseFilters);
+    if (purchases.length === 0) return;
+    PDFExport.exportPurchasesList(purchases, {});
 }
-
-// ==============================================================
-// MIGRATION HELPER (Run once in Console to move old base64 → Drive)
-// ==============================================================
-async function migrateOldBillsToDrive() {
-    const all = DB.getPurchases() || [];
-    let count = 0;
-    for (const bill of all) {
-        if (bill.attachment && !bill.drive_attachment_url) {
-            console.log(`Migrating ${bill.bill_no}...`);
-            try {
-                // Convert base64 to Blob
-                const res = await fetch(bill.attachment);
-                const blob = await res.blob();
-                const file = new File([blob], `${bill.bill_no}.jpg`, { type: blob.type });
-                const uploadRes = await uploadPurchaseBill(file, bill.id);
-                if (uploadRes && uploadRes.url) {
-                    bill.drive_attachment_url = uploadRes.url;
-                    bill.attachment = ''; // Clear base64 to free space
-                    count++;
-                }
-            } catch (err) {
-                console.error('Migration failed for', bill.bill_no, err);
-            }
-        }
-    }
-    DB.setPurchases(all);
-    alert(`✅ Migrated ${count} bills to Drive. LocalStorage freed!`);
-}
-
-// ==============================================================
-// AUTO-INIT
-// ==============================================================
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (document.getElementById('purchaseTableBody')) initPurchasesPage();
-    });
-} else {
-    if (document.getElementById('purchaseTableBody')) initPurchasesPage();
-}
-/* ==============================================================
-   MAGIC HTML INJECTOR - FIXES BLANK SCREEN
-   ============================================================== */
-
-// DHYAN DEIN: Agar aapke system mein sidebar pe click karne se 'renderPurchases', 
-// 'showPurchases' ya koi aur function call hota hai, toh is 'loadPurchases' ka 
-// naam badal kar wahi rakh dijiye.
-function loadPurchases() {
-    
-    // Aapke main white area ka ID (Jyada tar 'mainContent' ya 'content' hota hai)
-    // Agar aapka ID alag hai, toh 'mainContent' ki jagah wo daal dein.
-    const container = document.getElementById('mainContent') || document.querySelector('.content') || document.querySelector('main');
-    
-    if (container) {
-        // Pura HTML Dhancha banakar container me daal rahe hain
-        container.innerHTML = `
-            <div id="purchaseListSection" class="w-full">
-                <div id="purchaseStats"></div>
-                <div id="purchaseFilters"></div>
-                
-                <div class="bg-white rounded-xl shadow overflow-x-auto border border-gray-100 mt-4">
-                    <table class="min-w-full">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">#</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Bill No</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Supplier</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Category</th>
-                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Amount</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="purchaseTableBody" class="divide-y divide-gray-100"></tbody>
-                    </table>
-                </div>
-                
-                <div id="purchasePagination" class="mt-4"></div>
-            </div>
-            
-            <!-- Premium View Section -->
-            <div id="purchaseViewSection" class="hidden w-full"></div>
-        `;
-
-        // Ab naye code ko bolenge ki is HTML ke andar data bharna shuru karo
-        initPurchasesPage();
-    } else {
-        console.error("Main container nahi mila! Kripya apna container ID check karein.");
-    }
-}
-
-// Support for other common function names automatically
-window.renderPurchases = loadPurchases;
-window.showPurchases = loadPurchases;
-window.openPurchases = loadPurchases;
