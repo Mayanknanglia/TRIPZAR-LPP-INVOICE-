@@ -1,5 +1,5 @@
 /* =============================================
-   PDF v21 - SMART GST AUTO-FETCH FROM CUSTOMER DB
+   PDF v22 - SMART GST AUTO-RESOLVER & PRINT FIX
    ============================================= */
 
 function downloadInvoicePDF(invoiceId) {
@@ -49,6 +49,48 @@ function wrapText(doc, text, maxWidth) {
     return doc.splitTextToSize(text, maxWidth);
 }
 
+// ⭐ SMART GST RESOLVER FUNCTION (Fixes Missing GST in Old Invoices)
+function resolveCustomerGST(inv) {
+    if (!inv) return '';
+    
+    // 1. Direct Check in Invoice Object
+    let gst = inv.customer_gst || inv.customer_gstin || inv.gst_no || inv.gstin || '';
+    if (gst && typeof gst === 'string' && gst.trim().length > 3) {
+        return gst.trim();
+    }
+
+    // 2. Fallback: Search in Customer DB by ID or Name
+    if (typeof DB !== 'undefined') {
+        try {
+            let cust = null;
+            if (inv.customer_id && typeof DB.getCustomerById === 'function') {
+                cust = DB.getCustomerById(inv.customer_id);
+            }
+            if (!cust && inv.customer_name && typeof DB.getCustomers === 'function') {
+                const cleanInvName = inv.customer_name.trim().toLowerCase().replace(/\s+/g, ' ');
+                const allCust = DB.getCustomers() || [];
+                cust = allCust.find(c => c && c.name && c.name.trim().toLowerCase().replace(/\s+/g, ' ') === cleanInvName);
+            }
+
+            if (cust) {
+                gst = cust.gst_no || cust.gst || cust.gstin || cust.gstNo || cust.tax_id || '';
+                if (gst && typeof gst === 'string' && gst.trim().length > 3) {
+                    const cleanGst = gst.trim();
+                    // Auto-repair invoice in DB memory
+                    inv.customer_gst = cleanGst;
+                    if (typeof DB.updateInvoice === 'function' && inv.id) {
+                        DB.updateInvoice(inv.id, { customer_gst: cleanGst });
+                    }
+                    return cleanGst;
+                }
+            }
+        } catch (err) {
+            console.warn('Error fetching GST from DB:', err);
+        }
+    }
+    return '';
+}
+
 async function generateInvoicePDF(inv, settings, action) {
     try {
         const { jsPDF } = window.jspdf;
@@ -59,18 +101,8 @@ async function generateInvoicePDF(inv, settings, action) {
         const CW = PW - ML - MR;
         const RE = PW - MR;
 
-        // ⭐ SMART GST AUTO-FETCH LOGIC (If missing in old invoice)
-        let custGst = (inv.customer_gst || '').trim();
-        if (!custGst && typeof DB !== 'undefined') {
-            if (inv.customer_id && DB.getCustomerById) {
-                const cust = DB.getCustomerById(inv.customer_id);
-                if (cust && cust.gst_no) custGst = cust.gst_no.trim();
-            }
-            if (!custGst && DB.getCustomers) {
-                const cust = DB.getCustomers().find(c => c.name && c.name.trim().toLowerCase() === (inv.customer_name || '').trim().toLowerCase());
-                if (cust && cust.gst_no) custGst = cust.gst_no.trim();
-            }
-        }
+        // Auto-resolve GSTIN if missing in saved invoice
+        const custGst = resolveCustomerGST(inv);
 
         doc.setDrawColor(0);
         doc.setLineWidth(0.25);
@@ -154,19 +186,19 @@ async function generateInvoicePDF(inv, settings, action) {
         y += cH;
 
         // ==========================================
-        // BUYER + INVOICE (With Smart GST Auto-Height)
+        // BUYER + INVOICE (DYNAMIC GST PRINTING)
         // ==========================================
         let addressLineCount = inv.customer_address ? wrapText(doc, toProperCase(inv.customer_address), (CW - 75) - 4).length : 0;
         addressLineCount = Math.min(addressLineCount, 2);
         
         let extraLines = addressLineCount;
         if (inv.customer_city) extraLines += 1;
-        if (custGst) extraLines += 1; // Dynamic check
+        if (custGst) extraLines += 1; // Add space for GST line
         
-        const bH = 26 + (extraLines * 3.5);
-        
+        const bH = 28 + (extraLines * 3.5);
         const iW = 75;
         const bW = CW - iW;
+
         box(ML, y, bW, bH);
         box(ML + bW, y, iW, bH);
 
@@ -201,7 +233,7 @@ async function generateInvoicePDF(inv, settings, action) {
         doc.text(fitText(doc, toProperCase(inv.customer_state || '') + ' - ' + toProperCase(inv.customer_country || 'India'), bW - 4), ML + 2, by);
         by += 3.5;
 
-        // ⭐ CUSTOMER GST PRINTS HERE AUTOMATICALLY
+        // ⭐ CUSTOMER GST PRINTS HERE 
         if (custGst) {
             doc.setFont('helvetica', 'bold');
             doc.text('GSTIN/UIN:  ' + custGst.toUpperCase(), ML + 2, by);
