@@ -524,15 +524,59 @@ async function deletePurchaseAction(id) {
     renderPurchaseList();
 }
 
+// ==== YAHAN SE CHANGE KIYA GAYA HAI (Naya View Form with Tax + Drive Box) ==== //
 function viewPurchase(id) {
     const p = DB.getPurchaseById(id);
     if (!p) return;
     const balance = (p.total_amount || 0) - (p.paid_amount || 0);
-    const linkedInv = p.linked_invoice_id ? DB.getInvoiceById(p.linked_invoice_id) : null;
-    const hasBill = p.drive_attachment_url || p.bill_attachment;
 
     navigateTo('purchaseView');
     const c = document.getElementById('page-purchaseView');
+    
+    // 1. ATTACHMENT VIEW GENERATOR (Drive & Legacy Local Storage)
+    let attachmentHTML = '';
+    if (p.drive_attachment_url) {
+        attachmentHTML = `
+            <div class="card card-body" style="margin-bottom:16px; border-left:4px solid #1565c0; background-color:#f8faff;">
+                <div style="font-size:12px; font-weight:700; color:#1565c0; text-transform:uppercase; margin-bottom:8px;">
+                    ☁️ Google Drive Attachment
+                </div>
+                <a href="${p.drive_attachment_url}" target="_blank" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px; width:max-content; padding: 8px 16px;">
+                    <span class="material-icons-round" style="font-size:18px">open_in_new</span> View Original Bill
+                </a>
+            </div>
+        `;
+    } else if (p.bill_attachment) {
+        attachmentHTML = `
+            <div class="card card-body" style="margin-bottom:16px; border-left:4px solid #f59e0b; background-color:#fffbf2;">
+                <div style="font-size:12px; font-weight:700; color:#d97706; text-transform:uppercase; margin-bottom:8px;">
+                    📎 Saved Attachment (Local)
+                </div>
+                <button onclick="downloadPurchaseAttachment('${p.id}')" class="btn btn-secondary" style="display:inline-flex; align-items:center; gap:6px; width:max-content; padding: 8px 16px;">
+                    <span class="material-icons-round" style="font-size:18px">image</span> View Bill
+                </button>
+            </div>
+        `;
+    }
+
+    // 2. TAX BREAKDOWN GENERATOR
+    let taxBreakdownHTML = '';
+    if ((p.base_amount > 0) || (p.gst_amount > 0)) {
+        taxBreakdownHTML = `
+            <div style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px;">
+                <div class="calc-row" style="color:var(--text-secondary); font-size:14px; margin-bottom: 4px;">
+                    <span class="calc-label">Taxable Value (Base):</span>
+                    <span class="calc-value">${formatCurrency(p.base_amount || 0)}</span>
+                </div>
+                ${p.gst_amount > 0 ? `
+                <div class="calc-row" style="color:var(--text-secondary); font-size:14px;">
+                    <span class="calc-label">Total GST Amount:</span>
+                    <span class="calc-value">${formatCurrency(p.gst_amount || 0)}</span>
+                </div>` : ''}
+            </div>
+        `;
+    }
+
     c.innerHTML = `
         <div class="page-header">
             <div class="page-header-title">
@@ -544,7 +588,6 @@ function viewPurchase(id) {
 
         <div class="invoice-actions">
             <button class="btn btn-secondary" onclick="editPurchase('${p.id}')"><span class="material-icons-round">edit</span> Edit</button>
-            ${hasBill ? `<button class="btn btn-primary" onclick="downloadPurchaseAttachment('${p.id}')"><span class="material-icons-round">download</span> Bill</button>` : ''}
             <button class="btn btn-danger" onclick="deletePurchaseAction('${p.id}')"><span class="material-icons-round">delete</span> Delete</button>
         </div>
 
@@ -554,31 +597,35 @@ function viewPurchase(id) {
                     <div class="section-title">Supplier</div>
                     <h3 style="font-size:16px;font-weight:700">${toProperCase(p.supplier_name)}</h3>
                     ${p.supplier_gst ? `<p style="font-size:12px;color:var(--text-secondary)">GST: ${p.supplier_gst}</p>` : ''}
-                    <span class="badge badge-info" style="margin-top:6px">${p.category}</span>
+                    <span class="badge badge-info" style="margin-top:6px">${p.category || 'Purchase'}</span>
                 </div>
                 <div style="text-align:right">
                     <p>Bill: <strong>${p.bill_no}</strong></p>
                     <p>Date: <strong>${formatDate(p.bill_date)}</strong></p>
                     <p>FY: <strong>${p.financial_year}</strong></p>
-                    <span class="badge ${p.payment_status==='paid'?'badge-success':p.payment_status==='partial'?'badge-warning':'badge-danger'}" style="margin-top:6px">${p.payment_status.toUpperCase()}</span>
+                    <span class="badge ${p.payment_status==='paid'?'badge-success':p.payment_status==='partial'?'badge-warning':'badge-danger'}" style="margin-top:6px">${(p.payment_status||'').toUpperCase()}</span>
                 </div>
             </div>
 
             <div class="calc-box">
+                ${taxBreakdownHTML}
                 <div class="calc-row total"><span class="calc-label">Grand Total:</span><span class="calc-value">${formatCurrency(p.total_amount || 0)}</span></div>
-                <div class="calc-row" style="color:var(--success)"><span class="calc-label">Paid:</span><span class="calc-value">${formatCurrency(p.paid_amount || 0)}</span></div>
-                <div class="calc-row" style="color:${balance>0?'var(--danger)':'var(--success)'};font-weight:700"><span class="calc-label">Balance:</span><span class="calc-value">${formatCurrency(balance)}</span></div>
+                <div class="calc-row" style="color:var(--success); margin-top:8px;"><span class="calc-label">Paid:</span><span class="calc-value">${formatCurrency(p.paid_amount || 0)}</span></div>
+                <div class="calc-row" style="color:${balance>0?'var(--danger)':'var(--success)'};font-weight:700; margin-top:4px;"><span class="calc-label">Balance:</span><span class="calc-value">${formatCurrency(balance)}</span></div>
             </div>
+            
+            ${p.notes ? `
+            <div style="margin-top:16px; padding-top:16px; border-top:1px dashed var(--border);">
+                <div class="section-title" style="font-size:12px;">Notes</div>
+                <p style="font-size:13px; color:var(--text-secondary); white-space:pre-wrap;">${p.notes}</p>
+            </div>
+            ` : ''}
         </div>
 
-        ${p.drive_attachment_url ? `
-            <div class="card card-body" style="margin-bottom:16px;border-left:4px solid #1565c0">
-                <div class="section-heading" style="margin-top:0;color:#1565c0">☁️ Bill on Google Drive</div>
-                <a href="${p.drive_attachment_url}" target="_blank" class="btn btn-primary" style="margin-top:8px">Open Bill in Drive</a>
-            </div>
-        ` : ''}
+        ${attachmentHTML}
     `;
 }
+// ==== CHANGE YAHAN TAK HI HAI ==== //
 
 function downloadPurchaseAttachment(id) {
     const p = DB.getPurchaseById(id);
